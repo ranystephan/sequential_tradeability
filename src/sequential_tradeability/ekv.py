@@ -184,3 +184,91 @@ class DiscretePrior:
         mean = float(np.dot(weights, self.support))
         second = float(np.dot(weights, self.support**2))
         return max(second - mean**2, 0.0)
+
+
+@dataclass(frozen=True)
+class ThreeStatePrior:
+    """Posterior for a dead/alive drift prior with support {-alpha, 0, +alpha}.
+
+    The prior is intentionally finite and explicit.  In the alpha-tradeability
+    interpretation, theta = 0 is a dead signal, while theta = +/- alpha are live signals
+    with opposite directions.
+    """
+
+    alpha: float
+    prob_negative: float
+    prob_dead: float
+    prob_positive: float
+
+    def __post_init__(self) -> None:
+        _require_positive("alpha", self.alpha)
+        probabilities = np.array(
+            [self.prob_negative, self.prob_dead, self.prob_positive], dtype=float
+        )
+        if np.any(probabilities <= 0.0):
+            raise ValueError("all prior probabilities must be positive")
+        if not np.isclose(probabilities.sum(), 1.0):
+            raise ValueError("prior probabilities must sum to one")
+
+    @property
+    def support(self) -> np.ndarray:
+        """Return the drift support ordered as negative, dead, positive."""
+        return np.array([-self.alpha, 0.0, self.alpha], dtype=float)
+
+    @property
+    def probabilities(self) -> np.ndarray:
+        """Return prior probabilities ordered as negative, dead, positive."""
+        return np.array(
+            [self.prob_negative, self.prob_dead, self.prob_positive], dtype=float
+        )
+
+    def posterior_probabilities(self, t: float, y: float | np.ndarray) -> np.ndarray:
+        """Return posterior probabilities P(theta_i | Y_t = y).
+
+        If y is an array, the last output axis indexes (-alpha, 0, +alpha).
+        """
+        if t < 0:
+            raise ValueError("t must be nonnegative")
+        y_array = np.asarray(y, dtype=float)
+        support = self.support
+        log_weights = (
+            np.log(self.probabilities)
+            + y_array[..., np.newaxis] * support
+            - 0.5 * support**2 * t
+        )
+        normalizer = logsumexp(log_weights, axis=-1, keepdims=True)
+        return np.exp(log_weights - normalizer)
+
+    def posterior_negative(self, t: float, y: float | np.ndarray) -> float | np.ndarray:
+        """Return P(theta = -alpha | Y_t = y)."""
+        return self.posterior_probabilities(t, y)[..., 0]
+
+    def posterior_dead(self, t: float, y: float | np.ndarray) -> float | np.ndarray:
+        """Return P(theta = 0 | Y_t = y)."""
+        return self.posterior_probabilities(t, y)[..., 1]
+
+    def posterior_positive(self, t: float, y: float | np.ndarray) -> float | np.ndarray:
+        """Return P(theta = +alpha | Y_t = y)."""
+        return self.posterior_probabilities(t, y)[..., 2]
+
+    def posterior_alive(self, t: float, y: float | np.ndarray) -> float | np.ndarray:
+        """Return P(theta != 0 | Y_t = y)."""
+        return 1.0 - self.posterior_dead(t, y)
+
+    def mean(self, t: float, y: float | np.ndarray) -> float | np.ndarray:
+        """Return E[theta | Y_t = y], the innovation drift."""
+        probabilities = self.posterior_probabilities(t, y)
+        mean = probabilities @ self.support
+        return float(mean) if np.ndim(mean) == 0 else mean
+
+    def second_moment(self, t: float, y: float | np.ndarray) -> float | np.ndarray:
+        """Return E[theta^2 | Y_t = y]."""
+        probabilities = self.posterior_probabilities(t, y)
+        second = probabilities @ (self.support**2)
+        return float(second) if np.ndim(second) == 0 else second
+
+    def variance(self, t: float, y: float | np.ndarray) -> float | np.ndarray:
+        """Return Var(theta | Y_t = y)."""
+        variance = self.second_moment(t, y) - np.asarray(self.mean(t, y)) ** 2
+        variance = np.maximum(variance, 0.0)
+        return float(variance) if np.ndim(variance) == 0 else variance

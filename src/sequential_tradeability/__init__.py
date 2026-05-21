@@ -4,6 +4,7 @@ from sequential_tradeability.ekv import (
     BernoulliPosterior,
     DiscretePrior,
     GaussianPosterior,
+    ThreeStatePrior,
     bernoulli_boundary,
     gaussian_stopping_time,
 )
@@ -28,6 +29,7 @@ __all__ = [
     "BernoulliPosterior",
     "DiscretePrior",
     "GaussianPosterior",
+    "ThreeStatePrior",
     "StoppingGrid",
     "StoppingSolution",
     "TradeabilityPayoff",

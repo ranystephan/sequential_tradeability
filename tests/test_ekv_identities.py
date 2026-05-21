@@ -5,6 +5,7 @@ from sequential_tradeability.ekv import (
     BernoulliPosterior,
     DiscretePrior,
     GaussianPosterior,
+    ThreeStatePrior,
     bernoulli_boundary,
     gaussian_stopping_time,
 )
@@ -82,3 +83,99 @@ def test_discrete_prior_derivative_of_posterior_mean_is_posterior_variance() -> 
     finite_difference = (prior.mean(t, y + step) - prior.mean(t, y - step)) / (2.0 * step)
 
     assert finite_difference == pytest.approx(prior.variance(t, y), rel=1e-7, abs=1e-7)
+
+
+def test_three_state_posterior_probabilities_are_normalized() -> None:
+    prior = ThreeStatePrior(
+        alpha=0.45,
+        prob_negative=0.2,
+        prob_dead=0.55,
+        prob_positive=0.25,
+    )
+    y_grid = np.linspace(-3.0, 3.0, 31)
+
+    posterior = prior.posterior_probabilities(t=4.0, y=y_grid)
+
+    assert posterior.shape == (31, 3)
+    assert np.all(posterior > 0.0)
+    assert np.allclose(posterior.sum(axis=1), 1.0)
+
+
+def test_three_state_prior_is_symmetric_when_prior_is_symmetric() -> None:
+    prior = ThreeStatePrior(
+        alpha=0.8,
+        prob_negative=0.25,
+        prob_dead=0.5,
+        prob_positive=0.25,
+    )
+    t = 1.7
+    y = 0.6
+
+    assert prior.posterior_positive(t, y) == pytest.approx(
+        prior.posterior_negative(t, -y)
+    )
+    assert prior.posterior_dead(t, y) == pytest.approx(prior.posterior_dead(t, -y))
+    assert prior.mean(t, y) == pytest.approx(-prior.mean(t, -y))
+
+
+def test_three_state_dead_probability_increases_when_evidence_stays_flat() -> None:
+    prior = ThreeStatePrior(
+        alpha=0.7,
+        prob_negative=0.3,
+        prob_dead=0.4,
+        prob_positive=0.3,
+    )
+
+    dead_probabilities = np.array([prior.posterior_dead(t, y=0.0) for t in [0.0, 1.0, 3.0]])
+
+    assert np.all(np.diff(dead_probabilities) > 0.0)
+    assert dead_probabilities[0] == pytest.approx(0.4)
+
+
+def test_three_state_large_evidence_identifies_direction() -> None:
+    prior = ThreeStatePrior(
+        alpha=0.5,
+        prob_negative=0.3,
+        prob_dead=0.4,
+        prob_positive=0.3,
+    )
+
+    assert prior.posterior_positive(t=2.0, y=100.0) == pytest.approx(1.0)
+    assert prior.posterior_negative(t=2.0, y=-100.0) == pytest.approx(1.0)
+
+
+def test_three_state_derivative_of_posterior_mean_is_posterior_variance() -> None:
+    prior = ThreeStatePrior(
+        alpha=0.9,
+        prob_negative=0.15,
+        prob_dead=0.65,
+        prob_positive=0.2,
+    )
+    t = 2.4
+    y = 0.35
+    step = 1e-5
+
+    finite_difference = (prior.mean(t, y + step) - prior.mean(t, y - step)) / (
+        2.0 * step
+    )
+
+    assert finite_difference == pytest.approx(prior.variance(t, y), rel=1e-7, abs=1e-7)
+
+
+def test_three_state_innovation_increment_is_centered_under_posterior() -> None:
+    prior = ThreeStatePrior(
+        alpha=0.6,
+        prob_negative=0.2,
+        prob_dead=0.5,
+        prob_positive=0.3,
+    )
+    t = 1.2
+    y = -0.25
+    dt = 0.01
+    posterior = prior.posterior_probabilities(t, y)
+    conditional_drift_residuals = prior.support - prior.mean(t, y)
+
+    assert np.dot(posterior, conditional_drift_residuals * dt) == pytest.approx(0.0)
+    assert np.dot(posterior, conditional_drift_residuals**2 * dt) == pytest.approx(
+        prior.variance(t, y) * dt
+    )

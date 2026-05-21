@@ -388,9 +388,88 @@ candidate alpha is worthless.
     \caption{Pathwise validation under the Gaussian evidence model.  The dynamic boundary
     substantially improves realized value for large \(|\theta|\), but it is not uniformly
     dominant: near \(\theta=0\), the Gaussian prior over-activates noisy dead signals.  This
-    is a useful stress test, pointing to a spike-and-slab prior as the next mathematical
-    extension.}
+    is a useful stress test, pointing to an explicit dead/alive prior as the next
+    mathematical extension.}
     \label{fig:simulation_policy_comparison}
 \end{figure}
+
+\section{Dead/Alive Prior}
+
+The Gaussian prior is a natural first model because it gives a one-dimensional posterior
+mean and a deterministic posterior variance.  But it does not assign positive probability
+to the event that the signal has exactly zero alpha.  For signal validation, this is a
+serious omission: many candidate alphas are not merely weak, but dead.
+
+The next model is therefore the finite prior
+\begin{equation}
+    \theta\in\{-a,0,+a\},
+    \qquad
+    \mathbb P(\theta=-a)=p_-,
+    \quad
+    \mathbb P(\theta=0)=p_0,
+    \quad
+    \mathbb P(\theta=+a)=p_+.
+    \label{eq:three_state_prior}
+\end{equation}
+The three states have direct economic meanings: live short, dead, and live long.  Given
+evidence \(Y_t=y\), Bayes' rule gives
+\begin{equation}
+    \pi_i(t,y)
+    =
+    \frac{
+        p_i\exp\{\theta_i y-\theta_i^2t/2\}
+    }{
+        \sum_j p_j\exp\{\theta_j y-\theta_j^2t/2\}
+    },
+    \qquad
+    \theta_i\in\{-a,0,+a\}.
+    \label{eq:three_state_posterior}
+\end{equation}
+The posterior mean and variance are
+\begin{equation}
+    m(t,y)=\sum_i\pi_i(t,y)\theta_i,
+    \qquad
+    q(t,y)=\sum_i\pi_i(t,y)\theta_i^2-m(t,y)^2.
+    \label{eq:three_state_moments}
+\end{equation}
+As in the EKV filtering setup, the posterior mean is the innovation drift:
+\begin{equation}
+    dY_t=m(t,Y_t)\,dt+d\widehat W_t.
+    \label{eq:three_state_innovation}
+\end{equation}
+The tradeability payoff can now be evaluated using \(m(t,y)\) and \(q(t,y)\), but the
+state has an additional interpretation through the posterior dead probability
+\(\pi_0(t,y)\).  If evidence remains near zero while time passes, the likelihood of the
+dead state rises relative to the live states, because live alphas would probably have
+generated directional evidence.
+
+This model is not just a larger portfolio problem.  A multiperiod portfolio model usually
+takes the alpha signal as an input and chooses positions.  Here the decision comes one
+step earlier: should this noisy signal be admitted into the trading system, rejected, or
+observed longer?  That distinction is what makes the dead state valuable.
+
+The implemented posterior object is validated by the following identities:
+\begin{itemize}
+    \item posterior probabilities sum to one and remain positive;
+    \item under a symmetric prior, \(\pi_+(t,y)=\pi_-(t,-y)\) and
+    \(m(t,y)=-m(t,-y)\);
+    \item when \(y=0\), \(\pi_0(t,0)\) increases with \(t\);
+    \item large positive or negative evidence identifies the corresponding live state;
+    \item the EKV identity \(\partial_y m(t,y)=q(t,y)\) holds numerically;
+    \item conditional innovation increments are centered under the posterior.
+\end{itemize}
+The next computational step is to solve the finite-horizon obstacle problem in
+\((t,y)\)-space,
+\begin{equation}
+    \max\left\{
+        e^{-\rho t}\Phi(m(t,y),q(t,y))-V(t,y),
+        \partial_tV+m(t,y)\partial_yV+\frac{1}{2}\partial_{yy}V-c
+    \right\}
+    =
+    0.
+    \label{eq:three_state_vi}
+\end{equation}
+The main testable prediction is that the dead/alive policy should reduce false activation
+when \(\theta=0\), while preserving activation power when \(\theta=\pm a\).
 
 \end{document}
