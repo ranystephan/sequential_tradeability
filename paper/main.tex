@@ -211,5 +211,109 @@ survives uncertainty and transaction costs.  Once that payoff is fixed, the proj
 becomes a numerically solvable optimal stopping problem whose boundary can be compared
 against fixed \(t\)-statistic, rolling Sharpe, and IC-threshold rules.
 
-\end{document}
+\section{A First Tradeability Payoff}
 
+We now define the first finance version of the terminal stopping payoff.  Suppose that,
+at a stopping time, the posterior belief about the signal strength is summarized by mean
+\(m\) and variance \(q\).  If the signal is activated with signed exposure \(z\), we use the
+posterior predictive mean-variance objective
+\begin{equation}
+    m z
+    -
+    \frac{\lambda}{2}(\sigma_r^2+q)z^2
+    -
+    \kappa.
+    \label{eq:activation_objective}
+\end{equation}
+Here \(\lambda>0\) is risk aversion, \(\sigma_r^2\) is the residual return variance of the
+traded signal, \(q\) is posterior parameter uncertainty, and \(\kappa\ge 0\) is an
+implementation hurdle representing spread, impact, research delay, or capital allocation
+cost.  Optimizing \eqref{eq:activation_objective} over \(z\in\mathbb R\) gives
+\begin{equation}
+    \sup_z
+    \left\{
+    mz-\frac{\lambda}{2}(\sigma_r^2+q)z^2-\kappa
+    \right\}
+    =
+    \frac{m^2}{2\lambda(\sigma_r^2+q)}-\kappa.
+\end{equation}
+Since the decision maker can reject the signal instead of trading it, the terminal payoff is
+\begin{equation}
+    \Phi(m,q)
+    =
+    \left(
+    \frac{m^2}{2\lambda(\sigma_r^2+q)}
+    -
+    \kappa
+    \right)^+.
+    \label{eq:tradeability_payoff}
+\end{equation}
+The immediate activation threshold is therefore
+\begin{equation}
+    |m|
+    >
+    \sqrt{2\lambda(\sigma_r^2+q)\kappa}.
+    \label{eq:activation_threshold}
+\end{equation}
+This is only a terminal threshold.  Before the final validation date, the signal also has
+option value: a currently ambiguous signal may become tradeable after more evidence
+arrives.
+
+\section{Finite-Horizon Stopping Problem}
+
+For the Gaussian prior, the posterior variance is deterministic:
+\[
+    q(t)=\frac{q_0}{1+q_0t},
+\]
+and the posterior mean follows
+\begin{equation}
+    dm_t = q(t)\,d\widehat W_t.
+\end{equation}
+Given a finite validation horizon \(T\), the tradeability value is
+\begin{equation}
+    V(t,m)
+    =
+    \sup_{\tau\in[t,T]}
+    \mathbb E_{t,m}
+    \left[
+        \Phi(m_\tau,q(\tau))
+        -
+        \int_t^\tau c\,ds
+    \right].
+    \label{eq:tradeability_value}
+\end{equation}
+The continuation region satisfies the variational inequality
+\begin{equation}
+    \max\left\{
+        \Phi(m,q(t))-V(t,m),
+        \partial_t V(t,m)
+        +
+        \frac{1}{2}q(t)^2\partial_{mm}V(t,m)
+        -
+        c
+    \right\}
+    =
+    0,
+    \label{eq:tradeability_vi}
+\end{equation}
+with terminal condition
+\begin{equation}
+    V(T,m)=\Phi(m,q(T)).
+\end{equation}
+
+This is the first paper-level object we can compute.  It has the right economic
+interpretation:
+\begin{itemize}
+    \item high \(|m|\) favors stopping and activating the signal;
+    \item low posterior variance \(q\) lowers the option value of more observation;
+    \item high observation or implementation cost shrinks the continuation region;
+    \item near \(m=0\), the payoff can be zero while continuation value remains positive,
+    because future evidence may still move the posterior mean into the tradeable region.
+\end{itemize}
+
+The code solves \eqref{eq:tradeability_vi} by backward implicit Euler on a uniform grid in
+\((t,m)\), with the mean-domain boundaries pinned to the immediate stopping payoff.  The
+implementation is validated against exact activation thresholds, symmetry in \(m\), the
+zero-payoff no-continuation case, and monotonic decline of value as observation cost rises.
+
+\end{document}
