@@ -336,4 +336,61 @@ early exercise of strong alpha when \(\rho>0\).
     \label{fig:gaussian_tradeability_boundary}
 \end{figure}
 
+\section{Simulation Validation}
+
+Before using real data, we validate the stopping rule inside the model it is designed to
+solve.  We simulate evidence paths
+\begin{equation}
+    dY_t = \theta\,dt+dW_t
+\end{equation}
+for fixed true alpha strengths \(\theta\).  The posterior mean and variance are updated
+exactly using the Gaussian formulas above:
+\begin{equation}
+    m_t = \frac{q_0Y_t}{1+q_0t},
+    \qquad
+    q_t = \frac{q_0}{1+q_0t}.
+\end{equation}
+If a policy activates at time \(\tau\), it chooses the posterior-optimal exposure
+\begin{equation}
+    z_\tau^\star
+    =
+    \frac{m_\tau}{\lambda(\sigma_r^2+q_\tau)}.
+\end{equation}
+We then evaluate the realized economic value under the true alpha:
+\begin{equation}
+    e^{-\rho\tau}
+    \left(
+        \theta z_\tau^\star
+        -
+        \frac{\lambda}{2}\sigma_r^2(z_\tau^\star)^2
+        -
+        \kappa
+    \right)
+    -
+    c\tau,
+    \label{eq:realized_value}
+\end{equation}
+with value \(-c\tau\) if the policy rejects instead of activating.
+
+Figure~\ref{fig:simulation_policy_comparison} compares the dynamic boundary to two
+simple baselines: immediate activation once the static payoff threshold
+\eqref{eq:activation_threshold} is crossed, and a fixed posterior \(z\)-statistic rule.
+The experiment is not meant to be the final empirical result.  It is a calibration check.
+It shows that the dynamic rule captures option value for genuinely strong alphas, but it
+also exposes a weakness of the Gaussian prior: when the true alpha is zero, random
+evidence often eventually looks tradeable.  This motivates the next model extension, a
+dead/alive or spike-and-slab prior that can explicitly represent the possibility that a
+candidate alpha is worthless.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.86\linewidth]{../figures/simulation_policy_comparison.pdf}
+    \caption{Pathwise validation under the Gaussian evidence model.  The dynamic boundary
+    substantially improves realized value for large \(|\theta|\), but it is not uniformly
+    dominant: near \(\theta=0\), the Gaussian prior over-activates noisy dead signals.  This
+    is a useful stress test, pointing to a spike-and-slab prior as the next mathematical
+    extension.}
+    \label{fig:simulation_policy_comparison}
+\end{figure}
+
 \end{document}
