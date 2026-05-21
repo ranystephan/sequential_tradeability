@@ -1,0 +1,2 @@
+initial_value_at_y0,initial_payoff_at_y0,initial_dead_probability_at_y0,terminal_dead_probability_at_y0,dead_activation_penalty,three_state_alpha,three_state_prior_dead,matched_prior_variance,max_obstacle_violation,terminal_value_error,symmetry_error
+0.0012019993514731974,0.0,0.7,0.730526974151701,0.002,0.38729833462074165,0.7,0.045,0.0,0.0,4.163336342344337e-16

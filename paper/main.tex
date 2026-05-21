@@ -443,6 +443,28 @@ state has an additional interpretation through the posterior dead probability
 dead state rises relative to the live states, because live alphas would probably have
 generated directional evidence.
 
+The first stress test showed that merely adding a dead state is not enough.  If the
+terminal payoff remains only the trading payoff in \eqref{eq:tradeability_payoff}, the
+model still activates too many noisy null paths.  This is not a numerical failure; it is
+an objective-function issue.  A research process cares not only about expected trading
+profit conditional on current beliefs, but also about the cost of admitting false
+discoveries into production.  We model this with a dead-activation penalty \(\eta\ge0\),
+paid if the signal is activated and \(\theta=0\).  Ex ante, the posterior expected penalty
+is \(\eta\pi_0(t,y)\), so the terminal payoff becomes
+\begin{equation}
+    \Phi_\eta(t,y)
+    =
+    e^{-\rho t}
+    \left(
+    \frac{m(t,y)^2}{2\lambda(\sigma_r^2+q(t,y))}
+    -
+    \kappa
+    -
+    \eta\pi_0(t,y)
+    \right)^+.
+    \label{eq:dead_alive_payoff}
+\end{equation}
+
 This model is not just a larger portfolio problem.  A multiperiod portfolio model usually
 takes the alpha signal as an input and chooses positions.  Here the decision comes one
 step earlier: should this noisy signal be admitted into the trading system, rejected, or
@@ -462,7 +484,7 @@ The next computational step is to solve the finite-horizon obstacle problem in
 \((t,y)\)-space,
 \begin{equation}
     \max\left\{
-        e^{-\rho t}\Phi(m(t,y),q(t,y))-V(t,y),
+        \Phi_\eta(t,y)-V(t,y),
         \partial_tV+m(t,y)\partial_yV+\frac{1}{2}\partial_{yy}V-c
     \right\}
     =
@@ -471,5 +493,35 @@ The next computational step is to solve the finite-horizon obstacle problem in
 \end{equation}
 The main testable prediction is that the dead/alive policy should reduce false activation
 when \(\theta=0\), while preserving activation power when \(\theta=\pm a\).
+
+\section{Dead/Alive Simulation Stress Test}
+
+The calibrated dead/alive experiment uses \(p_0=0.70\), symmetric live probabilities,
+matched prior second moment \(0.045\), and therefore
+\[
+    a=\sqrt{\frac{0.045}{1-p_0}}\approx0.387.
+\]
+The false-discovery cost is set to \(\eta=0.002\), with the same trading payoff,
+observation cost, activation decay, and validation horizon used in the Gaussian
+comparison.  The Gaussian benchmark is given the same initial prior variance, so the
+difference is not simply more or less initial uncertainty; it is the explicit posterior
+dead state and its admission penalty.
+
+The finite-difference diagnostics are exact to numerical tolerance: the maximum obstacle
+violation is \(0\), the terminal value error is \(0\), and the symmetry error is
+\(4.2\times10^{-16}\).  The posterior dead probability at \(y=0\) increases from \(0.70\)
+to \(0.731\) over the horizon, as expected when no directional evidence arrives.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.94\linewidth]{../figures/dead_alive_policy_comparison.pdf}
+    \caption{Controlled stress test for the dead/alive admission rule.  The dead/alive
+    boundary lowers false activation at \(\theta=0\) from \(47.1\%\) under the matched
+    Gaussian boundary to \(39.8\%\), improving null realized value from \(-0.00560\) to
+    \(-0.00513\).  The gain is not free: live-alpha value is slightly lower than the
+    Gaussian benchmark.  The result is therefore a disciplined false-discovery/power
+    tradeoff, not a dominance claim.}
+    \label{fig:dead_alive_policy_comparison}
+\end{figure}
 
 \end{document}
