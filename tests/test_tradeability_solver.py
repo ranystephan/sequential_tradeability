@@ -107,3 +107,50 @@ def test_solution_is_symmetric_in_posterior_mean() -> None:
 
     assert np.max(np.abs(solution.values - np.fliplr(solution.values))) < 1e-10
 
+
+def test_decision_regions_distinguish_reject_observe_and_activate() -> None:
+    posterior = GaussianPosterior(prior_mean=0.0, prior_variance=0.7)
+    payoff = TradeabilityPayoff(
+        risk_aversion=1.0,
+        return_variance=0.05,
+        implementation_hurdle=0.015,
+    )
+    solution = solve_gaussian_tradeability(
+        posterior=posterior,
+        payoff_model=payoff,
+        observation_cost=0.0005,
+        horizon=2.0,
+        mean_max=1.0,
+        n_time=101,
+        n_mean=101,
+    )
+    regions = solution.decision_regions()
+    center = solution.grid.means.size // 2
+
+    assert regions[0, center] == 0
+    assert regions[-1, center] == -1
+    assert regions[0, 0] == 1
+    assert regions[0, -1] == 1
+
+
+def test_activation_decay_makes_strong_alpha_exercise_early() -> None:
+    posterior = GaussianPosterior(prior_mean=0.0, prior_variance=0.05)
+    payoff = TradeabilityPayoff(
+        risk_aversion=1.0,
+        return_variance=0.05,
+        implementation_hurdle=0.015,
+    )
+    solution = solve_gaussian_tradeability(
+        posterior=posterior,
+        payoff_model=payoff,
+        observation_cost=0.02,
+        horizon=1.0,
+        mean_max=0.8,
+        activation_decay=3.0,
+        n_time=101,
+        n_mean=101,
+    )
+    regions = solution.decision_regions()
+
+    assert regions[0, 0] == 1
+    assert regions[0, -1] == 1

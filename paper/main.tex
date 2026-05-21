@@ -3,6 +3,7 @@
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath, amssymb, amsthm, bm}
 \usepackage{booktabs}
+\usepackage{graphicx}
 \usepackage{hyperref}
 
 \title{Sequential Tradeability Testing for Alpha Signals}
@@ -276,16 +277,23 @@ Given a finite validation horizon \(T\), the tradeability value is
     \sup_{\tau\in[t,T]}
     \mathbb E_{t,m}
     \left[
-        \Phi(m_\tau,q(\tau))
+        e^{-\rho \tau}\Phi(m_\tau,q(\tau))
         -
         \int_t^\tau c\,ds
     \right].
     \label{eq:tradeability_value}
 \end{equation}
+The parameter \(\rho\ge 0\) captures alpha decay or opportunity loss during validation.
+This term is economically important.  Without decay or discounting, the activation
+payoff is convex in the posterior mean \(m\), and the model can prefer to keep observing
+even when \(|m|\) is already very large.  That is the wrong lifecycle decision for a
+decaying alpha: a sufficiently strong signal should be activated before its deployable
+value evaporates.
+
 The continuation region satisfies the variational inequality
 \begin{equation}
     \max\left\{
-        \Phi(m,q(t))-V(t,m),
+        e^{-\rho t}\Phi(m,q(t))-V(t,m),
         \partial_t V(t,m)
         +
         \frac{1}{2}q(t)^2\partial_{mm}V(t,m)
@@ -298,7 +306,7 @@ The continuation region satisfies the variational inequality
 \end{equation}
 with terminal condition
 \begin{equation}
-    V(T,m)=\Phi(m,q(T)).
+    V(T,m)=e^{-\rho T}\Phi(m,q(T)).
 \end{equation}
 
 This is the first paper-level object we can compute.  It has the right economic
@@ -314,6 +322,18 @@ interpretation:
 The code solves \eqref{eq:tradeability_vi} by backward implicit Euler on a uniform grid in
 \((t,m)\), with the mean-domain boundaries pinned to the immediate stopping payoff.  The
 implementation is validated against exact activation thresholds, symmetry in \(m\), the
-zero-payoff no-continuation case, and monotonic decline of value as observation cost rises.
+zero-payoff no-continuation case, monotonic decline of value as observation cost rises, and
+early exercise of strong alpha when \(\rho>0\).
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.92\linewidth]{../figures/gaussian_tradeability_boundary.pdf}
+    \caption{First finite-difference tradeability boundary for the Gaussian-belief model.
+    Red states stop and activate the alpha, gray states stop and reject it, and blue states
+    continue observing.  The dashed curves show the static activation threshold from
+    \eqref{eq:activation_threshold}; the dynamic boundary is wider because ambiguous
+    signals have option value early in the validation period.}
+    \label{fig:gaussian_tradeability_boundary}
+\end{figure}
 
 \end{document}

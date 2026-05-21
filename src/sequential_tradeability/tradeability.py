@@ -80,6 +80,17 @@ class StoppingSolution:
         """Interpolate V(0, m0) on the computed grid."""
         return float(np.interp(initial_mean, self.grid.means, self.values[0]))
 
+    def decision_regions(self, payoff_tolerance: float = 1e-10) -> np.ndarray:
+        """Classify each grid point as reject, observe, or activate.
+
+        Returns an integer array with -1 for stop/reject, 0 for continue observing,
+        and 1 for stop/activate.
+        """
+        regions = np.zeros_like(self.values, dtype=int)
+        regions[self.stop & (self.payoff <= payoff_tolerance)] = -1
+        regions[self.stop & (self.payoff > payoff_tolerance)] = 1
+        return regions
+
 
 def make_grid(horizon: float, n_time: int, mean_max: float, n_mean: int) -> StoppingGrid:
     """Create a symmetric uniform grid."""
@@ -102,6 +113,7 @@ def solve_gaussian_tradeability(
     observation_cost: float,
     horizon: float,
     mean_max: float,
+    activation_decay: float = 0.0,
     n_time: int = 401,
     n_mean: int = 401,
 ) -> StoppingSolution:
@@ -113,21 +125,28 @@ def solve_gaussian_tradeability(
 
     The reward-form variational inequality is
 
-        V(t,m) = max(Phi(t,m), continuation value),
+        V(t,m) = max(exp(-rho t) Phi(t,m), continuation value),
         V_t + 0.5 q(t)^2 V_mm - c = 0      in the continuation region,
-        V(T,m) = Phi(T,m).
+        V(T,m) = exp(-rho T) Phi(T,m).
 
     We use backward implicit Euler on a uniform mean grid. The mean-domain boundaries
     are pinned to the immediate stopping payoff; choose mean_max wide enough that
     stopping is optimal near the edges.
     """
     _require_positive("observation_cost", observation_cost)
+    if not np.isfinite(activation_decay) or activation_decay < 0:
+        raise ValueError("activation_decay must be nonnegative and finite")
     grid = make_grid(horizon, n_time, mean_max, n_mean)
     n_t = grid.times.size
     n_m = grid.means.size
 
     posterior_variance = np.array([posterior.variance(t) for t in grid.times])
-    payoff = np.vstack([payoff_model.value(grid.means, q) for q in posterior_variance])
+    payoff = np.vstack(
+        [
+            np.exp(-activation_decay * t) * payoff_model.value(grid.means, q)
+            for t, q in zip(grid.times, posterior_variance, strict=True)
+        ]
+    )
     values = np.empty_like(payoff)
     values[-1] = payoff[-1]
 
@@ -164,4 +183,3 @@ def solve_gaussian_tradeability(
         stop=stop,
         posterior_variance=posterior_variance,
     )
-
