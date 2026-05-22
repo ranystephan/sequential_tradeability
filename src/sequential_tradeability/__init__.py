@@ -12,11 +12,13 @@ from sequential_tradeability.realdata import (
     RealDataPolicyResult,
     ReturnSeries,
     SignalEvidence,
+    apply_static_threshold_to_evidence,
     apply_three_state_solution_to_evidence,
     build_signal_evidence,
     lag1_autocorrelation,
     load_osap_long_short_returns,
     sign_flip_evidence,
+    static_three_state_score,
     trim_return_series,
 )
 from sequential_tradeability.simulation import (
@@ -57,6 +59,7 @@ __all__ = [
     "RealDataPolicyResult",
     "ReturnSeries",
     "SignalEvidence",
+    "apply_static_threshold_to_evidence",
     "ThreeStateEvidencePaths",
     "apply_three_state_solution_to_evidence",
     "build_signal_evidence",
@@ -77,5 +80,6 @@ __all__ = [
     "sign_flip_evidence",
     "solve_gaussian_tradeability",
     "solve_three_state_tradeability",
+    "static_three_state_score",
     "trim_return_series",
 ]

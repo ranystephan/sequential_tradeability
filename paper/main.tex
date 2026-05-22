@@ -567,6 +567,29 @@ versions of the same signals, it activates only 52 signals, or \(27.1\%\).  This
 first real-data evidence that the admission rule is not merely responding to volatility:
 it is much more likely to stop and activate when the evidence has persistent direction.
 
+The main benchmark question is whether this is genuinely a sequential result or just a
+fixed-horizon posterior test in disguise.  To test this, we compare against fixed-horizon
+rules at 12, 24, 60, 120, and 240 validation months.  Each rule uses the same
+three-state posterior and is calibrated on the sign-flipped placebo signals to activate
+exactly 52 placebos, matching the sequential rule's \(27.1\%\) placebo activation rate.
+At a fixed horizon, posterior net payoff, posterior \(z\)-statistic, and posterior alive
+probability give the same ranking in this symmetric three-state model; this is a useful
+sanity check because all three are monotone transformations of absolute evidence
+strength at fixed \(t\).
+
+Figure~\ref{fig:osap_static_benchmark} shows the result.  The sequential rule activates
+\(72.9\%\) of real signals with an average decision time of 47.9 months and an activated
+holdout return of \(0.747\%\) per month.  A fixed 60-month test is close in time but
+slightly weaker, activating \(70.8\%\) with \(0.705\%\) holdout return.  Fixed 120- and
+240-month tests activate more real signals, \(77.1\%\) and \(82.8\%\), but they require
+waiting 10 and 20 years and their activated holdout returns fall to \(0.689\%\) and
+\(0.537\%\).  Thus the sequential rule does not simply dominate every fixed test on raw
+activation count.  Its empirical advantage is an earlier admission frontier: it reaches
+nearly the long-horizon activation power while preserving stronger post-decision
+performance.  The activation-weighted holdout return is \(0.545\) for the sequential
+rule, compared with \(0.500\), \(0.531\), and \(0.444\) for the 60-, 120-, and 240-month
+fixed tests.
+
 \begin{figure}[t]
     \centering
     \includegraphics[width=0.82\linewidth]{../figures/osap_penalty_sweep.pdf}
@@ -575,6 +598,16 @@ it is much more likely to stop and activate when the evidence has persistent dir
     placebos, but it lowers placebo activation more quickly.  The dashed line marks the
     \(\eta=0.04\) calibration used in the real-data experiment.}
     \label{fig:osap_penalty_sweep}
+\end{figure}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{../figures/osap_static_benchmark_comparison.pdf}
+    \caption{Fixed-horizon benchmarks calibrated to the same sign-flip placebo activation
+    count as the sequential rule.  The left panel compares real activation rates.  The
+    right panel compares activation-weighted holdout return, defined as real activation
+    rate times average post-decision return among activated signals.}
+    \label{fig:osap_static_benchmark}
 \end{figure}
 
 The approximation is imperfect.  Across all eligible signals, the mean validation

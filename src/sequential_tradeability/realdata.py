@@ -9,8 +9,8 @@ from pathlib import Path
 
 import numpy as np
 
-from sequential_tradeability.ekv import _require_positive
-from sequential_tradeability.tradeability import ThreeStateStoppingSolution
+from sequential_tradeability.ekv import ThreeStatePrior, _require_positive
+from sequential_tradeability.tradeability import ThreeStateStoppingSolution, TradeabilityPayoff
 
 
 @dataclass(frozen=True)
@@ -210,6 +210,34 @@ def lag1_autocorrelation(values: np.ndarray) -> float:
     return float(np.dot(left, right) / denominator)
 
 
+def _stop_date(evidence: SignalEvidence, stop_index: int) -> date:
+    date_index = int(np.clip(stop_index - 1, 0, evidence.validation_dates.size - 1))
+    return evidence.validation_dates[date_index]
+
+
+def _holdout_statistics(
+    evidence: SignalEvidence,
+    *,
+    stop_index: int,
+    holdout_months: int,
+) -> tuple[int, float, float]:
+    holdout_start = stop_index
+    available_holdout = evidence.validation_returns[holdout_start:]
+    if evidence.holdout_returns.size:
+        available_holdout = np.concatenate([available_holdout, evidence.holdout_returns])
+    holdout = available_holdout[:holdout_months]
+    if holdout.size > 1:
+        holdout_mean = float(np.mean(holdout))
+        holdout_std = float(np.std(holdout, ddof=1))
+        holdout_t = holdout_mean / (holdout_std / np.sqrt(holdout.size))
+        if holdout_std <= 0:
+            holdout_t = float("nan")
+    else:
+        holdout_mean = float("nan")
+        holdout_t = float("nan")
+    return int(holdout.size), holdout_mean, holdout_t
+
+
 def sign_flip_evidence(
     evidence: SignalEvidence,
     rng: np.random.Generator,
@@ -228,6 +256,103 @@ def sign_flip_evidence(
         name=f"{evidence.name}{suffix}",
         increments=increments,
         observations=np.concatenate([[0.0], np.cumsum(increments)]),
+    )
+
+
+def static_three_state_score(
+    *,
+    prior: ThreeStatePrior,
+    payoff_model: TradeabilityPayoff,
+    evidence: SignalEvidence,
+    horizon_months: int,
+    score_kind: str,
+    dead_activation_penalty: float = 0.0,
+) -> float:
+    """Return a fixed-horizon activation score from the three-state posterior.
+
+    The fixed-horizon benchmarks deliberately use the same posterior state as the
+    sequential rule.  Only the timing and threshold are changed.
+    """
+    if horizon_months < 1 or horizon_months > evidence.validation_months:
+        raise ValueError("horizon_months must lie inside the validation window")
+    if not np.isfinite(dead_activation_penalty) or dead_activation_penalty < 0:
+        raise ValueError("dead_activation_penalty must be nonnegative and finite")
+
+    time = float(evidence.times[horizon_months])
+    observation = float(evidence.observations[horizon_months])
+    posterior_mean = float(prior.mean(time, observation))
+    posterior_variance = float(prior.variance(time, observation))
+    posterior_dead = float(prior.posterior_dead(time, observation))
+
+    if score_kind == "net_payoff":
+        return float(
+            payoff_model.gross_value(np.array([posterior_mean]), np.array([posterior_variance]))[0]
+            - payoff_model.implementation_hurdle
+            - dead_activation_penalty * posterior_dead
+        )
+    if score_kind == "z_stat":
+        return float(abs(posterior_mean) / np.sqrt(max(posterior_variance, 1e-15)))
+    if score_kind == "alive_probability":
+        return float(1.0 - posterior_dead)
+    raise ValueError(f"unknown score_kind: {score_kind}")
+
+
+def apply_static_threshold_to_evidence(
+    *,
+    prior: ThreeStatePrior,
+    payoff_model: TradeabilityPayoff,
+    evidence: SignalEvidence,
+    horizon_months: int,
+    score_kind: str,
+    threshold: float,
+    dead_activation_penalty: float = 0.0,
+    holdout_months: int = 120,
+) -> RealDataPolicyResult:
+    """Apply a fixed-horizon posterior threshold benchmark to one evidence stream."""
+    if holdout_months < 1:
+        raise ValueError("holdout_months must be positive")
+    if not np.isfinite(threshold):
+        raise ValueError("threshold must be finite")
+
+    score = static_three_state_score(
+        prior=prior,
+        payoff_model=payoff_model,
+        evidence=evidence,
+        horizon_months=horizon_months,
+        score_kind=score_kind,
+        dead_activation_penalty=dead_activation_penalty,
+    )
+    decision = 1 if score >= threshold else -1
+    time = float(evidence.times[horizon_months])
+    observation = float(evidence.observations[horizon_months])
+    posterior_mean = float(prior.mean(time, observation))
+    posterior_dead = float(prior.posterior_dead(time, observation))
+    observed_holdout_months, holdout_mean, holdout_t = _holdout_statistics(
+        evidence,
+        stop_index=horizon_months,
+        holdout_months=holdout_months,
+    )
+
+    return RealDataPolicyResult(
+        signal=evidence.name,
+        decision=decision,
+        stop_index=horizon_months,
+        stop_date=_stop_date(evidence, horizon_months),
+        stop_time_years=time,
+        evidence_at_stop=observation,
+        posterior_mean_at_stop=posterior_mean,
+        posterior_dead_at_stop=posterior_dead,
+        calibration_months=evidence.calibration_months,
+        validation_months=evidence.validation_months,
+        monthly_sigma=evidence.monthly_sigma,
+        validation_increment_mean=float(np.mean(evidence.increments)),
+        validation_increment_variance_over_dt=float(
+            np.var(evidence.increments, ddof=1) / evidence.dt
+        ),
+        validation_lag1_autocorr=lag1_autocorrelation(evidence.increments),
+        holdout_months=observed_holdout_months,
+        holdout_mean_return_percent=holdout_mean,
+        holdout_t_stat=holdout_t,
     )
 
 
@@ -264,7 +389,6 @@ def apply_three_state_solution_to_evidence(
             decision = region
             break
 
-    stop_date_index = min(stop_index, evidence.validation_dates.size - 1)
     stop_time = evidence.times[stop_index]
     grid_time_index = min(int(round(stop_time / solution.dt)), solution.times.size - 1)
     evidence_index = np.searchsorted(solution.evidence, evidence.observations[stop_index])
@@ -275,26 +399,17 @@ def apply_three_state_solution_to_evidence(
         evidence.observations[stop_index] - left
     ) else evidence_index - 1
 
-    holdout_start = stop_index
-    available_holdout = evidence.validation_returns[holdout_start:]
-    if evidence.holdout_returns.size:
-        available_holdout = np.concatenate([available_holdout, evidence.holdout_returns])
-    holdout = available_holdout[:holdout_months]
-    if holdout.size > 1:
-        holdout_mean = float(np.mean(holdout))
-        holdout_std = float(np.std(holdout, ddof=1))
-        holdout_t = holdout_mean / (holdout_std / np.sqrt(holdout.size))
-        if holdout_std <= 0:
-            holdout_t = float("nan")
-    else:
-        holdout_mean = float("nan")
-        holdout_t = float("nan")
+    observed_holdout_months, holdout_mean, holdout_t = _holdout_statistics(
+        evidence,
+        stop_index=stop_index,
+        holdout_months=holdout_months,
+    )
 
     return RealDataPolicyResult(
         signal=evidence.name,
         decision=decision,
         stop_index=stop_index,
-        stop_date=evidence.validation_dates[stop_date_index],
+        stop_date=_stop_date(evidence, stop_index),
         stop_time_years=float(stop_time),
         evidence_at_stop=float(evidence.observations[stop_index]),
         posterior_mean_at_stop=float(solution.posterior_mean[grid_time_index, nearest]),
@@ -307,7 +422,7 @@ def apply_three_state_solution_to_evidence(
             np.var(evidence.increments, ddof=1) / evidence.dt
         ),
         validation_lag1_autocorr=lag1_autocorrelation(evidence.increments),
-        holdout_months=int(holdout.size),
+        holdout_months=observed_holdout_months,
         holdout_mean_return_percent=holdout_mean,
         holdout_t_stat=holdout_t,
     )

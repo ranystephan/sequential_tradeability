@@ -7,11 +7,13 @@ from sequential_tradeability import (
     ReturnSeries,
     ThreeStatePrior,
     TradeabilityPayoff,
+    apply_static_threshold_to_evidence,
     apply_three_state_solution_to_evidence,
     build_signal_evidence,
     lag1_autocorrelation,
     sign_flip_evidence,
     solve_three_state_tradeability,
+    static_three_state_score,
     trim_return_series,
 )
 
@@ -103,6 +105,80 @@ def test_sign_flip_evidence_preserves_increment_magnitudes() -> None:
     assert np.allclose(placebo.observations[1:], np.cumsum(placebo.increments))
 
 
+def test_static_three_state_net_payoff_score_matches_manual_formula() -> None:
+    dates = np.array([date(2000 + index // 12, index % 12 + 1, 28) for index in range(24)])
+    validation_returns = [2.0, 2.0, -1.0, -1.0, 0.5, -0.5, 0.25, -0.25, 0.1, -0.1, 0.2, -0.2]
+    returns = np.array([1.0, -1.0] * 6 + validation_returns)
+    evidence = build_signal_evidence(
+        ReturnSeries(name="toy", dates=dates, returns=returns),
+        calibration_months=12,
+        validation_months=8,
+    )
+    prior = ThreeStatePrior(alpha=0.4, prob_negative=0.15, prob_dead=0.7, prob_positive=0.15)
+    payoff = TradeabilityPayoff(
+        risk_aversion=1.0,
+        return_variance=0.05,
+        implementation_hurdle=0.005,
+    )
+    horizon_months = 4
+    time = evidence.times[horizon_months]
+    observation = evidence.observations[horizon_months]
+    posterior_mean = prior.mean(time, observation)
+    posterior_variance = prior.variance(time, observation)
+    posterior_dead = prior.posterior_dead(time, observation)
+    expected = (
+        payoff.gross_value(np.array([posterior_mean]), np.array([posterior_variance]))[0]
+        - payoff.implementation_hurdle
+        - 0.01 * posterior_dead
+    )
+
+    score = static_three_state_score(
+        prior=prior,
+        payoff_model=payoff,
+        evidence=evidence,
+        horizon_months=horizon_months,
+        score_kind="net_payoff",
+        dead_activation_penalty=0.01,
+    )
+
+    assert score == pytest.approx(expected)
+
+
+def test_static_threshold_decides_at_requested_horizon_and_holdout_start() -> None:
+    dates = np.array([date(2000 + index // 12, index % 12 + 1, 28) for index in range(36)])
+    returns = np.array([1.0, -1.0] * 6 + [2.0, 2.0, 2.0, -1.0, -1.0, -1.0] + [0.5] * 18)
+    evidence = build_signal_evidence(
+        ReturnSeries(name="toy", dates=dates, returns=returns),
+        calibration_months=12,
+        validation_months=6,
+    )
+    prior = ThreeStatePrior(alpha=0.4, prob_negative=0.15, prob_dead=0.7, prob_positive=0.15)
+    payoff = TradeabilityPayoff(
+        risk_aversion=1.0,
+        return_variance=0.05,
+        implementation_hurdle=0.005,
+    )
+
+    result = apply_static_threshold_to_evidence(
+        prior=prior,
+        payoff_model=payoff,
+        evidence=evidence,
+        horizon_months=3,
+        score_kind="z_stat",
+        threshold=0.0,
+        holdout_months=4,
+    )
+
+    assert result.decision == 1
+    assert result.stop_index == 3
+    assert result.stop_date == evidence.validation_dates[2]
+    assert result.holdout_months == 4
+    expected_holdout = np.concatenate(
+        [evidence.validation_returns[3:], evidence.holdout_returns]
+    )[:4]
+    assert result.holdout_mean_return_percent == pytest.approx(np.mean(expected_holdout))
+
+
 def test_apply_three_state_solution_returns_valid_real_data_decision() -> None:
     dates = np.array([date(2000 + index // 12, index % 12 + 1, 28) for index in range(36)])
     returns = np.array(
@@ -178,5 +254,7 @@ def test_apply_three_state_solution_returns_valid_real_data_decision() -> None:
     assert result.signal == "toy"
     assert result.decision in {-1, 1}
     assert 0 <= result.stop_index <= evidence.validation_months
+    if result.stop_index > 0:
+        assert result.stop_date == evidence.validation_dates[result.stop_index - 1]
     assert result.holdout_months == 6
     assert np.isfinite(result.validation_increment_variance_over_dt)
