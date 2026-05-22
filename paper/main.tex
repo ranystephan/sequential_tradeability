@@ -546,9 +546,17 @@ Thus a dead signal should have increment variance approximately \(dt\), while th
 The empirical protocol uses a common modern start date, January 1970, followed by 120
 months of calibration, up to 240 months of sequential validation, and a 120-month
 post-decision holdout window.  The admission rule uses the same three-state prior as the
-simulation, but with a stricter false-discovery penalty \(\eta=0.04\).  This penalty was
-chosen after a placebo stress test: sign-flipping each signal's validation returns keeps
+simulation, but with a stricter false-discovery penalty \(\eta=0.04\).  The penalty is
+calibrated by a placebo stress test: sign-flipping each signal's validation returns keeps
 the realized volatility pattern but destroys stable directional drift.
+
+Figure~\ref{fig:osap_penalty_sweep} shows the penalty sensitivity.  With no additional
+false-discovery cost, the rule activates \(91.1\%\) of real OSAP signals but also
+\(60.4\%\) of placebo signals.  As \(\eta\) increases, both rates decline, but the placebo
+rate falls faster.  The choice \(\eta=0.04\) is a conservative middle point: real
+activation remains high, while placebo activation falls below one third.  A larger
+penalty such as \(\eta=0.08\) lowers placebo activation further, but at the cost of
+rejecting many more real anomaly portfolios.
 
 For eight canonical signals (short-term reversal, momentum, book-to-market, operating
 profitability, asset growth, gross profitability, accruals, and bid-ask spread), the rule
@@ -558,6 +566,16 @@ history, the rule activates 140 signals, or \(72.9\%\).  On the sign-flipped pla
 versions of the same signals, it activates only 52 signals, or \(27.1\%\).  This is the
 first real-data evidence that the admission rule is not merely responding to volatility:
 it is much more likely to stop and activate when the evidence has persistent direction.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.82\linewidth]{../figures/osap_penalty_sweep.pdf}
+    \caption{Penalty sensitivity on all 192 eligible OSAP predictors.  Increasing the
+    false-discovery penalty lowers activation for both real signals and sign-flipped
+    placebos, but it lowers placebo activation more quickly.  The dashed line marks the
+    \(\eta=0.04\) calibration used in the real-data experiment.}
+    \label{fig:osap_penalty_sweep}
+\end{figure}
 
 The approximation is imperfect.  Across all eligible signals, the mean validation
 increment variance divided by \(dt\) is \(1.24\), and the median absolute lag-one

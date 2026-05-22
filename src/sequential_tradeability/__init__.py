@@ -16,6 +16,7 @@ from sequential_tradeability.realdata import (
     build_signal_evidence,
     lag1_autocorrelation,
     load_osap_long_short_returns,
+    sign_flip_evidence,
     trim_return_series,
 )
 from sequential_tradeability.simulation import (
@@ -73,6 +74,7 @@ __all__ = [
     "realized_activation_value",
     "simulate_gaussian_evidence",
     "simulate_three_state_evidence",
+    "sign_flip_evidence",
     "solve_gaussian_tradeability",
     "solve_three_state_tradeability",
     "trim_return_series",

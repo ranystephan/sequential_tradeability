@@ -10,6 +10,7 @@ from sequential_tradeability import (
     apply_three_state_solution_to_evidence,
     build_signal_evidence,
     lag1_autocorrelation,
+    sign_flip_evidence,
     solve_three_state_tradeability,
     trim_return_series,
 )
@@ -83,6 +84,23 @@ def test_trim_return_series_respects_date_range() -> None:
         date(2000, 5, 28),
     ]
     assert np.allclose(trimmed.returns, [2.0, 3.0, 4.0])
+
+
+def test_sign_flip_evidence_preserves_increment_magnitudes() -> None:
+    dates = np.array([date(2000 + index // 12, index % 12 + 1, 28) for index in range(24)])
+    returns = np.array([1.0, -1.0] * 12)
+    evidence = build_signal_evidence(
+        ReturnSeries(name="toy", dates=dates, returns=returns),
+        calibration_months=12,
+        validation_months=8,
+    )
+
+    placebo = sign_flip_evidence(evidence, np.random.default_rng(3))
+
+    assert placebo.name == "toy_signflip"
+    assert np.allclose(np.sort(np.abs(placebo.increments)), np.sort(np.abs(evidence.increments)))
+    assert placebo.observations[0] == 0.0
+    assert np.allclose(placebo.observations[1:], np.cumsum(placebo.increments))
 
 
 def test_apply_three_state_solution_returns_valid_real_data_decision() -> None:

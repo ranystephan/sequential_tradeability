@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import csv
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from pathlib import Path
 
@@ -208,6 +208,27 @@ def lag1_autocorrelation(values: np.ndarray) -> float:
     if denominator == 0.0:
         return float("nan")
     return float(np.dot(left, right) / denominator)
+
+
+def sign_flip_evidence(
+    evidence: SignalEvidence,
+    rng: np.random.Generator,
+    *,
+    suffix: str = "_signflip",
+) -> SignalEvidence:
+    """Return a sign-flipped placebo evidence stream.
+
+    This preserves the absolute realized shocks and therefore much of the volatility
+    structure, but destroys stable directional drift in expectation.
+    """
+    signs = rng.choice(np.array([-1.0, 1.0]), size=evidence.increments.size)
+    increments = evidence.increments * signs
+    return replace(
+        evidence,
+        name=f"{evidence.name}{suffix}",
+        increments=increments,
+        observations=np.concatenate([[0.0], np.cumsum(increments)]),
+    )
 
 
 def apply_three_state_solution_to_evidence(

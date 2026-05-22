@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import csv
 import sys
-from dataclasses import asdict, replace
+from dataclasses import asdict
 from datetime import date
 from pathlib import Path
 
@@ -19,6 +19,7 @@ from sequential_tradeability import (  # noqa: E402
     apply_three_state_solution_to_evidence,
     build_signal_evidence,
     load_osap_long_short_returns,
+    sign_flip_evidence,
     solve_three_state_tradeability,
     trim_return_series,
 )
@@ -240,14 +241,7 @@ def run_one_signal_with_placebo(
     row["last_date"] = trimmed.dates[-1].isoformat()
     row["stop_date"] = result.stop_date.isoformat()
 
-    signs = rng.choice(np.array([-1.0, 1.0]), size=evidence.increments.size)
-    placebo_increments = evidence.increments * signs
-    placebo_evidence = replace(
-        evidence,
-        name=f"{name}_signflip",
-        increments=placebo_increments,
-        observations=np.concatenate([[0.0], np.cumsum(placebo_increments)]),
-    )
+    placebo_evidence = sign_flip_evidence(evidence, rng)
     placebo_result = apply_three_state_solution_to_evidence(
         solution,
         placebo_evidence,
