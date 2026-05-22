@@ -1,0 +1,2 @@
+n_signals,n_activated,n_rejected,mean_posterior_dead_at_stop,mean_validation_variance_over_dt,median_abs_lag1_autocorr,mean_holdout_return_if_activated
+8,6,2,0.6365029540296041,0.8244143569318074,0.07587681846491288,1.3042803953832482

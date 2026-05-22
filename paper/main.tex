@@ -524,4 +524,46 @@ to \(0.731\) over the horizon, as expected when no directional evidence arrives.
     \label{fig:dead_alive_policy_comparison}
 \end{figure}
 
+\section{First Real-Data Experiment}
+
+As a first real-data test, we use the Chen--Zimmermann Open Source Cross-Sectional Asset
+Pricing data, specifically the Federal Reserve file of monthly long-short returns for 205
+predictors.\footnote{\url{https://www.federalreserve.gov/econres/feds/open-source-cross-sectional-asset-pricing.htm}}
+This is not yet the final WRDS stock-level experiment, but it is a useful intermediate
+test because the inputs are real anomaly portfolio returns rather than simulated evidence.
+
+For each signal, monthly returns are converted into Brownian evidence increments.  Let
+\(\widehat\sigma_m\) be the monthly volatility estimated from a 120-month calibration
+window.  With \(dt=1/12\),
+\[
+    \Delta Y_t
+    =
+    \frac{r_t}{\widehat\sigma_m}\sqrt{dt}.
+\]
+Thus a dead signal should have increment variance approximately \(dt\), while the drift
+\(\theta\) is interpretable as an annualized Sharpe-like evidence strength.
+
+The empirical protocol uses a common modern start date, January 1970, followed by 120
+months of calibration, up to 240 months of sequential validation, and a 120-month
+post-decision holdout window.  The admission rule uses the same three-state prior as the
+simulation, but with a stricter false-discovery penalty \(\eta=0.04\).  This penalty was
+chosen after a placebo stress test: sign-flipping each signal's validation returns keeps
+the realized volatility pattern but destroys stable directional drift.
+
+For eight canonical signals (short-term reversal, momentum, book-to-market, operating
+profitability, asset growth, gross profitability, accruals, and bid-ask spread), the rule
+activates six and rejects two.  The activated group has an average 120-month holdout
+return of \(1.30\%\) per month.  Across all 192 OSAP predictors with enough post-1970
+history, the rule activates 140 signals, or \(72.9\%\).  On the sign-flipped placebo
+versions of the same signals, it activates only 52 signals, or \(27.1\%\).  This is the
+first real-data evidence that the admission rule is not merely responding to volatility:
+it is much more likely to stop and activate when the evidence has persistent direction.
+
+The approximation is imperfect.  Across all eligible signals, the mean validation
+increment variance divided by \(dt\) is \(1.24\), and the median absolute lag-one
+autocorrelation is \(0.10\).  These diagnostics are close enough to make the Brownian
+evidence model a reasonable first approximation, but they also identify what the WRDS
+extension should improve: stock-level construction, explicit transaction costs, and
+signal-specific volatility updating.
+
 \end{document}

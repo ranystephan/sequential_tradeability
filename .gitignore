@@ -14,3 +14,4 @@ paper/*.out
 paper/*.pdf
 paper/*.run.xml
 paper/*.synctex.gz
+data/raw/*.csv

@@ -8,6 +8,16 @@ from sequential_tradeability.ekv import (
     bernoulli_boundary,
     gaussian_stopping_time,
 )
+from sequential_tradeability.realdata import (
+    RealDataPolicyResult,
+    ReturnSeries,
+    SignalEvidence,
+    apply_three_state_solution_to_evidence,
+    build_signal_evidence,
+    lag1_autocorrelation,
+    load_osap_long_short_returns,
+    trim_return_series,
+)
 from sequential_tradeability.simulation import (
     EvidencePaths,
     PolicyOutcome,
@@ -43,7 +53,12 @@ __all__ = [
     "TradeabilityPayoff",
     "EvidencePaths",
     "PolicyOutcome",
+    "RealDataPolicyResult",
+    "ReturnSeries",
+    "SignalEvidence",
     "ThreeStateEvidencePaths",
+    "apply_three_state_solution_to_evidence",
+    "build_signal_evidence",
     "evaluate_boundary_policy",
     "evaluate_static_payoff_policy",
     "evaluate_three_state_boundary_policy",
@@ -52,10 +67,13 @@ __all__ = [
     "evaluate_zstat_policy",
     "bernoulli_boundary",
     "gaussian_stopping_time",
+    "lag1_autocorrelation",
+    "load_osap_long_short_returns",
     "make_grid",
     "realized_activation_value",
     "simulate_gaussian_evidence",
     "simulate_three_state_evidence",
     "solve_gaussian_tradeability",
     "solve_three_state_tradeability",
+    "trim_return_series",
 ]
