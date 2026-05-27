@@ -639,13 +639,44 @@ increment variance divided by \(dt\) is \(1.24\), and the median absolute lag-on
 autocorrelation is \(0.10\).  These diagnostics are close enough to make the Brownian
 evidence model a reasonable first approximation, but they also identify what the WRDS
 extension should improve: stock-level construction, explicit transaction costs, and
-signal-specific volatility updating.  In the stock-level extension, the same admission
-rule should be run on gross and net long-short returns built from CRSP/Compustat data.
-The required panel is one row per signal, month, and stock, with the signal value known
-at formation, next-month return including delisting returns, market equity, a liquidity
-or spread proxy, and enough identifiers to enforce common-stock and exchange filters.
-This would turn the current question from ``does the anomaly return stream look
-tradeable?'' into the more implementable question: ``does it remain tradeable after
-portfolio turnover and trading frictions?''
+signal-specific volatility updating.
+
+We therefore build a first stock-level WRDS extension for momentum, book-to-market, and
+operating profitability.  The data are real CRSP/Compustat monthly panels: 3.30 million
+CRSP stock-months, 8.55 million stock-signal-months after merging signals, and 2,040
+monthly long-short portfolio returns.  Each month forms value-weighted top-minus-bottom
+decile portfolios using common stocks, next-month returns including delisting returns,
+and Compustat accounting data lagged by six months.  Table
+\ref{tab:wrds_stock_level} reports the sequential admission results on gross returns and
+on a conservative net-return stress test that subtracts turnover times a monthly
+high-low range cost proxy.
+
+\begin{table}[t]
+\centering
+\caption{Stock-level WRDS admission experiment, 1970 start, three reconstructed signals.}
+\label{tab:wrds_stock_level}
+\small
+\begin{tabular}{lrrrrr}
+\toprule
+Return stream & \(N\) & Active & Std. active & Stop mo. & Std. holdout \\
+\midrule
+Gross stock-level & 3 & 3 & 3 & 63.0 & 1.227\% \\
+Net range-cost stress & 3 & 3 & 0 & 49.0 & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The gross stock-level result is encouraging: all three reconstructed signals become
+tradeable in the standard direction.  The net stress test is deliberately harsher.  Its
+cost proxy is based on monthly high-low range information, not direct daily bid-ask
+quotes, and it removes 5.15\%, 13.20\%, and 3.08\% per month on average from
+book-to-market, momentum, and operating profitability respectively.  Under this severe
+cost model, the posterior detects negative net drift and the symmetric stopping rule
+would activate by shorting the net return stream.  Because reversing a costly portfolio
+is not the same as taking the negative of a net return, we also report a
+standard-direction admission count.  It is zero: these signals are tradeable in gross
+returns, but not under the current conservative transaction-cost stress test.  The next
+data improvement is to replace the high-low range stress proxy with a cleaner daily
+bid-ask or effective-spread estimate.
 
 \end{document}

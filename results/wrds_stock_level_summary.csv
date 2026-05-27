@@ -1,0 +1,3 @@
+return_kind,n_signals,n_activated,n_standard_direction_activated,n_rejected,activation_rate,standard_direction_activation_rate,mean_stop_month,mean_posterior_dead_at_stop,mean_validation_variance_over_dt,mean_holdout_return_if_activated,mean_holdout_return_if_standard_direction_activated,mean_holdout_return_if_rejected
+gross,3,3,3,0,1.0,1.0,63.0,0.6230892774186012,0.9987246972861946,1.2271285383544628,1.2271285383544628,nan
+net_range_cost,3,3,0,0,1.0,0.0,49.0,0.6048885879721052,1.1561828724782492,-4.094097733322461,nan,nan
