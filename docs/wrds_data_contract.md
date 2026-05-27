@@ -11,6 +11,25 @@ Preferred path:
 
 `data/processed/wrds_signal_panel.csv`
 
+The current downloader writes the compressed version:
+
+`data/processed/wrds_signal_panel.csv.gz`
+
+Run it from the repo root with:
+
+```bash
+uv run python scripts/download_wrds_stock_level.py --start 1968-01-01 --end 2025-12-31
+```
+
+It uses the official `wrds` Python package and will prompt for WRDS credentials. It also
+writes:
+
+- `data/raw/wrds/crsp_monthly.csv.gz`
+- `data/raw/wrds/crsp_delist.csv.gz`
+- `data/raw/wrds/compustat_funda.csv.gz`
+- `data/raw/wrds/ccm_link.csv.gz`
+- `data/processed/wrds_signal_returns.csv`
+
 Required columns:
 
 | column | type | meaning |

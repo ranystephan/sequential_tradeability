@@ -7,6 +7,7 @@ dependencies = [
     "matplotlib>=3.10.9",
     "numpy>=1.26",
     "scipy>=1.11",
+    "wrds>=3.5.0",
 ]
 
 [dependency-groups]
