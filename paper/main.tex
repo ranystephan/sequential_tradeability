@@ -19,11 +19,12 @@
 Many candidate alpha signals have positive historical predictive content but fail after
 uncertainty, decay, turnover, and market impact are considered.  This project studies
 alpha validation as a sequential decision problem.  Starting from the Bayesian drift
-estimation framework of Ekstrom, Karatzas, and Vaicenavicius, we model the evidence for
-an alpha signal as a noisy observation process with an unknown drift.  The posterior mean
-and posterior variance form the state variables, and the decision to continue observing,
-activate, or retire the signal becomes an optimal stopping problem.  The first step of the
-project derives and verifies the filtering identities that will later be extended with
+estimation framework of Ekstrom, Karatzas, and Vaicenavicius
+\cite{ekstromKaratzasVaicenavicius2022}, we model the evidence for an alpha signal as a
+noisy observation process with an unknown drift.  The posterior mean and posterior
+variance form the state variables, and the decision to continue observing, activate, or
+retire the signal becomes an optimal stopping problem.  The first step of the project
+derives and verifies the filtering identities that will later be extended with
 transaction costs and alpha decay.
 \end{abstract}
 
@@ -99,7 +100,7 @@ volatility of the posterior mean.
 
 \section{Optimal Stopping Interpretation}
 
-Ekstrom, Karatzas, and Vaicenavicius study
+Ekstrom, Karatzas, and Vaicenavicius \cite{ekstromKaratzasVaicenavicius2022} study
 \begin{equation}
     \inf_{\tau}
     \mathbb E\left[(X-\widehat X_\tau)^2+c\tau\right],
@@ -528,7 +529,8 @@ to \(0.731\) over the horizon, as expected when no directional evidence arrives.
 
 As a first real-data test, we use the Chen--Zimmermann Open Source Cross-Sectional Asset
 Pricing data, specifically the Federal Reserve file of monthly long-short returns for 205
-predictors.\footnote{\url{https://www.federalreserve.gov/econres/feds/open-source-cross-sectional-asset-pricing.htm}}
+predictors \cite{chenZimmermann2022}.\footnote{Federal Reserve data page:
+\url{https://www.federalreserve.gov/econres/feds/open-source-cross-sectional-asset-pricing.htm}}
 This is not yet the final WRDS stock-level experiment, but it is a useful intermediate
 test because the inputs are real anomaly portfolio returns rather than simulated evidence.
 
@@ -642,11 +644,12 @@ extension should improve: stock-level construction, explicit transaction costs, 
 signal-specific volatility updating.
 
 We therefore build a first stock-level WRDS extension for momentum, book-to-market, and
-operating profitability.  The data are real CRSP/Compustat monthly panels: 3.30 million
-CRSP stock-months, 8.55 million stock-signal-months after merging signals, and 2,040
-monthly long-short portfolio returns.  Each month forms value-weighted top-minus-bottom
-decile portfolios using common stocks, next-month returns including delisting returns,
-and Compustat accounting data lagged by six months.  Table
+operating profitability using WRDS access to CRSP and Compustat data
+\cite{wrdsPlatform,wrdsPy}.  The data are real CRSP/Compustat monthly panels: 3.30
+million CRSP stock-months, 8.55 million stock-signal-months after merging signals, and
+2,040 monthly long-short portfolio returns.  Each month forms value-weighted
+top-minus-bottom decile portfolios using common stocks, next-month returns including
+delisting returns, and Compustat accounting data lagged by six months.  Table
 \ref{tab:wrds_stock_level} reports the sequential admission results on gross returns and
 on a conservative net-return stress test that subtracts turnover times a monthly
 high-low range cost proxy.
@@ -677,6 +680,42 @@ is not the same as taking the negative of a net return, we also report a
 standard-direction admission count.  It is zero: these signals are tradeable in gross
 returns, but not under the current conservative transaction-cost stress test.  The next
 data improvement is to replace the high-low range stress proxy with a cleaner daily
-bid-ask or effective-spread estimate.
+bid-ask or effective-spread estimate, as in the transaction-cost anomaly literature
+\cite{chenVelikov2023}.
+
+\begin{thebibliography}{9}
+
+\bibitem{chenVelikov2023}
+Chen, Andrew Y., and Mihail Velikov.
+\newblock ``Zeroing In on the Expected Returns of Anomalies.''
+\newblock \emph{Journal of Financial and Quantitative Analysis}, 58(3):968--1004, 2023.
+\newblock \url{https://doi.org/10.1017/S0022109022000874}.
+
+\bibitem{chenZimmermann2022}
+Chen, Andrew Y., and Tom Zimmermann.
+\newblock ``Open Source Cross-Sectional Asset Pricing.''
+\newblock \emph{Critical Finance Review}, 11(2):207--264, 2022.
+\newblock Working-paper/data version: Finance and Economics Discussion Series 2021-037,
+Board of Governors of the Federal Reserve System.
+\newblock \url{https://doi.org/10.17016/FEDS.2021.037}.
+
+\bibitem{ekstromKaratzasVaicenavicius2022}
+Ekstrom, Erik, Ioannis Karatzas, and Juozas Vaicenavicius.
+\newblock ``Bayesian Sequential Least-Squares Estimation for the Drift of a Wiener
+Process.''
+\newblock \emph{Stochastic Processes and their Applications}, 145:335--352, 2022.
+\newblock arXiv version: \url{https://arxiv.org/abs/1901.05410}.
+
+\bibitem{wrdsPlatform}
+Wharton Research Data Services.
+\newblock WRDS research data platform.
+\newblock \url{https://wrds-www.wharton.upenn.edu/}.
+
+\bibitem{wrdsPy}
+Wharton Research Data Services.
+\newblock \emph{wrds}: Python package for accessing WRDS data, version 3.5.0.
+\newblock \url{https://pypi.org/project/wrds/}.
+
+\end{thebibliography}
 
 \end{document}
