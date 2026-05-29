@@ -23,17 +23,23 @@ estimation framework of Ekstrom, Karatzas, and Vaicenavicius
 \cite{ekstromKaratzasVaicenavicius2022}, we model the evidence for an alpha signal as a
 noisy observation process with an unknown drift.  The posterior mean and posterior
 variance form the state variables, and the decision to continue observing, activate, or
-retire the signal becomes an optimal stopping problem.  The first step of the project
-derives and verifies the filtering identities that will later be extended with
-transaction costs and alpha decay.
+reject the signal becomes an optimal stopping problem.  The project derives the
+filtering identities, replaces EKV's statistical terminal loss with an economic
+tradeability payoff, and tests the resulting boundary on simulated, OSAP, and WRDS
+stock-level evidence.
 \end{abstract}
+
+The thesis is that alpha validation is not a fixed-horizon hypothesis test.  It is a
+sequential real-options problem: continuing research has option value because future
+evidence may make an ambiguous signal tradeable, but delay is costly because capital,
+research time, and alpha decay matter.
 
 \section{Base Sequential Estimation Model}
 
 Let \(X\) denote the unknown strength of a candidate alpha signal.  In the base model,
 we observe a noisy evidence process
 \begin{equation}
-    Y_t = X t + W_t, \qquad t \ge 0,
+    Y_t = X\,t + W_t, \qquad t \ge 0,
     \label{eq:observation_model}
 \end{equation}
 where \(W\) is a standard Brownian motion independent of \(X\).  The prior distribution
@@ -193,8 +199,12 @@ from zero.
 \section{Project Translation}
 
 The base paper estimates an unknown drift.  Our project will preserve the posterior
-state and stopping-boundary structure, but change the terminal payoff from estimation
-accuracy to economic tradeability.  The intended mapping is:
+filtering state and stopping-boundary template, but change the terminal payoff from
+estimation accuracy to economic tradeability.  This distinction is important: the EKV
+variance-decay identity explains the statistical estimation problem, but it does not
+prove the optimality of the finance boundary below.  Once the reward functional changes,
+we must solve and validate a new obstacle problem using the EKV posterior dynamics as the
+state process.  The intended mapping is:
 \[
 \begin{array}{lll}
 \text{EKV variable} & & \text{alpha tradeability variable}\\
@@ -203,8 +213,8 @@ X && \text{unknown alpha strength}\\
 Y_t && \text{cumulative normalized signal evidence}\\
 \widehat X_t && \text{posterior mean alpha}\\
 \Psi(t,\widehat X_t) && \text{posterior uncertainty and learning speed}\\
-c && \text{observation, opportunity, and implementation cost}\\
-\tau && \text{activation, rejection, or retirement time}.
+c && \text{observation and opportunity cost}\\
+\tau && \text{activation or rejection time}.
 \end{array}
 \]
 The next mathematical step is to define a finance terminal payoff
@@ -230,7 +240,10 @@ posterior predictive mean-variance objective
 Here \(\lambda>0\) is risk aversion, \(\sigma_r^2\) is the residual return variance of the
 traded signal, \(q\) is posterior parameter uncertainty, and \(\kappa\ge 0\) is an
 implementation hurdle representing spread, impact, research delay, or capital allocation
-cost.  Optimizing \eqref{eq:activation_objective} over \(z\in\mathbb R\) gives
+cost.  The term \(\sigma_r^2+q\) is a predictive-risk approximation: position sizing is
+penalized both for realized return noise and for uncertainty about the latent alpha
+itself, in the same annualized evidence units used for \(m\).  Optimizing
+\eqref{eq:activation_objective} over \(z\in\mathbb R\) gives
 \begin{equation}
     \sup_z
     \left\{
@@ -259,7 +272,9 @@ The immediate activation threshold is therefore
 \end{equation}
 This is only a terminal threshold.  Before the final validation date, the signal also has
 option value: a currently ambiguous signal may become tradeable after more evidence
-arrives.
+arrives.  A richer implementation model could replace the fixed hurdle \(\kappa\) with
+terms such as \(\kappa_0+\kappa_1|z|+\kappa_2z^2\), which would penalize turnover,
+liquidity, and capacity directly; we leave that as a natural extension.
 
 \section{Finite-Horizon Stopping Problem}
 
@@ -285,6 +300,11 @@ Given a finite validation horizon \(T\), the tradeability value is
     \label{eq:tradeability_value}
 \end{equation}
 The parameter \(\rho\ge 0\) captures alpha decay or opportunity loss during validation.
+The value \(V(t,m)\) is measured in calendar-time units from the beginning of validation,
+so the terminal reward is discounted by \(e^{-\rho\tau}\).  With this convention decay is
+part of the time-dependent obstacle; an equivalent formulation with value measured from
+the current time \(t\) would use \(e^{-\rho(\tau-t)}\) and place the discount term inside
+the continuation PDE.
 This term is economically important.  Without decay or discounting, the activation
 payoff is convex in the posterior mean \(m\), and the model can prefer to keep observing
 even when \(|m|\) is already very large.  That is the wrong lifecycle decision for a
@@ -542,8 +562,11 @@ window.  With \(dt=1/12\),
     =
     \frac{r_t}{\widehat\sigma_m}\sqrt{dt}.
 \]
-Thus a dead signal should have increment variance approximately \(dt\), while the drift
-\(\theta\) is interpretable as an annualized Sharpe-like evidence strength.
+This formula multiplies by \(\sqrt{dt}\); it does not divide by it.  Under a null signal
+with monthly return variance \(\widehat\sigma_m^2\),
+\(\operatorname{Var}(\Delta Y_t)\approx dt\), matching the Brownian increment scale.
+The drift \(\theta\) is therefore interpretable as an annualized Sharpe-like evidence
+strength.
 
 The empirical protocol uses a common modern start date, January 1970, followed by 120
 months of calibration, up to 240 months of sequential validation, and a 120-month
