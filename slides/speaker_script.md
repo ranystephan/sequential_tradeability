@@ -2,27 +2,27 @@
 
 ## 1. Title
 
-This project is about a practical problem in quantitative research: after observing a candidate alpha for some time, when do we stop researching it and decide whether it should enter live trading?
+This project studies alpha validation as a sequential admission problem: after observing a candidate signal, when is the posterior evidence sufficient to activate, reject, or continue?
 
 The mathematical language is Bayesian filtering and optimal stopping. The practical language is alpha admission.
 
 ## 2. The Object Of The Project
 
-The key idea is that alpha validation is not just a test at a fixed date. Evidence arrives through time. At every point, the research desk has three possible actions: keep observing, activate the signal, or reject it.
+The key point is that validation is not naturally tied to an exogenous calendar date. Evidence arrives sequentially, and at each posterior state the decision maker chooses among continuation, activation, and rejection.
 
 The reason this is an optimal stopping problem is that waiting has option value, but waiting also has cost. More evidence may turn an ambiguous idea into a tradeable one, but the alpha may decay and research capacity is not free.
 
 ## 3. Why The Usual Test Is Not The Right Decision Problem
 
-A fixed-horizon test asks whether the signal is significant at a preselected date. That is useful, but it does not fully describe the decision a quant team faces.
+A fixed-horizon test conditions on a preselected date and asks for statistical evidence at that date. The admission problem is different: it asks whether the posterior evidence has enough economic value to justify a production decision.
 
-If the evidence becomes strong early, waiting until the fixed date wastes value. If the evidence stays dead, continuing to research it wastes capacity. The sequential problem asks the more operational question: is it worth trading yet?
+If evidence becomes decisive early, the fixed horizon delays action. If evidence remains uninformative, the fixed horizon delays rejection. The sequential rule endogenizes both margins.
 
 ## 4. Storyline
 
 The talk has six steps. First I explain the EKV model, which learns an unknown Brownian drift. Then I explain the identity that makes the stopping problem clean. Then I show how I change the reward from statistical accuracy to economic tradeability.
 
-After that I show why the Gaussian model is useful but incomplete, introduce the dead/alive prior, and test the resulting rule on simulated data, OSAP data, and WRDS stock-level returns.
+After that I show why the Gaussian model is a diagnostic but incomplete benchmark, introduce the three-state prior, and test the resulting rule on simulated data, OSAP data, and WRDS stock-level returns.
 
 ## 5. EKV Starts With Drift Learning
 
@@ -34,7 +34,7 @@ For our project, the interpretation changes. \(X\) is unknown alpha strength, an
 
 Because the observation is Brownian with drift, the likelihood of a candidate drift \(u\) is exponential in \(uy-u^2t/2\). This gives the posterior distribution on the slide.
 
-The two important summaries are the posterior mean and posterior variance. The derivative identity \(\partial_yG=H\) is useful because it tells us that evidence moves the posterior mean more when uncertainty is high.
+The relevant summaries are the posterior mean and posterior variance. The derivative identity \(\partial_yG=H\) shows that sensitivity of the posterior mean to new evidence is governed by posterior variance.
 
 ## 7. The Filtering Identity
 
@@ -52,13 +52,13 @@ The key identity says that expected posterior variance equals initial variance m
 
 This converts the objective into a running-cost problem. Each instant of waiting costs \(c\), but earns expected variance reduction \(\Psi^2\).
 
-This is the clean intuition we borrow: continuation is valuable only when the expected learning benefit is large enough.
+This is the core intuition we borrow: continuation is justified only when the expected value of information exceeds the observation cost.
 
 ## 10. Two EKV Benchmarks
 
-The Gaussian prior gives a closed-form deterministic posterior variance, which is a useful benchmark for code and intuition.
+The Gaussian prior gives a closed-form deterministic posterior variance, which is a benchmark for the code and for the first obstacle problem.
 
-The Bernoulli prior gives a stopping boundary in posterior-mean space. This is closer to the admission logic: keep observing while beliefs are ambiguous, and stop once evidence is far enough from zero.
+The Bernoulli prior gives a stopping boundary in posterior-mean space. It is the first clean example of continuation around ambiguous posterior means and stopping away from zero.
 
 ## 11. The Project Changes The Terminal Reward
 
@@ -96,37 +96,37 @@ The important point is that the blue region is an option-value region. It is not
 
 Inside the Gaussian model, the dynamic rule performs well for strong true alphas. That validates the basic learning and stopping logic.
 
-But the same figure reveals the weakness: at zero true alpha, the Gaussian prior still activates too often. This is not just a tuning issue. It comes from the fact that a Gaussian prior assigns zero probability to exactly dead alpha.
+The same figure reveals the limitation: at zero true alpha, the Gaussian prior activates too often. This is structural rather than only parametric, because a diffuse Gaussian prior assigns zero posterior probability to the event \(\theta=0\).
 
 ## 17. Why This Failure Is Informative
 
-In real alpha research, many signals are not weakly positive or weakly negative. They are dead because they came from data mining, microstructure artifacts, or implementation assumptions.
+A candidate signal set can contain a nontrivial mass of null-alpha signals. Treating all candidates as draws from a diffuse continuous prior forces the posterior to explain noise as small nonzero alpha.
 
-So the model should contain a dead state explicitly.
+The extension therefore places a point mass at the null-alpha state.
 
 ## 18. A Three-State Prior
 
-The three-state prior has a live short state, a dead state, and a live long state.
+The three-state prior has a negative-alpha state, a null-alpha state, and a positive-alpha state.
 
-This is simple but very useful. It gives the posterior a way to say: the evidence is not merely uncertain, it is increasingly consistent with no alpha.
+This separates sign uncertainty from the probability that the signal has no admissible alpha.
 
 ## 19. Posterior Probabilities
 
 The posterior probabilities are just finite-state Bayes' rule. The posterior mean and variance follow from those probabilities.
 
-The most important intuition is what happens when evidence remains near zero. The posterior dead probability rises over time because a live signal should have produced directional evidence.
+The key comparative static is at near-zero evidence. As time passes without directional evidence, the posterior probability of the null-alpha state increases.
 
 ## 20. Dead-State Penalty
 
-The original economic payoff can still activate too many noisy null paths. So I add a false-discovery penalty proportional to the posterior probability that the signal is dead.
+The economic payoff is then adjusted by a false-discovery penalty proportional to the posterior probability of the null-alpha state.
 
 The resulting obstacle problem is now in evidence space \(y\), because the posterior state is determined by time and cumulative evidence.
 
 ## 21. Controlled Validation
 
-The dead/alive rule lowers null activation from 47.1 percent to 39.8 percent relative to a matched Gaussian boundary. Null realized value also improves.
+The three-state rule lowers null activation from 47.1 percent to 39.8 percent relative to a matched Gaussian boundary. Null realized value also improves.
 
-It does not dominate everywhere. Live-alpha value is slightly lower. That is exactly the tradeoff a serious admission rule should expose: lower false discovery versus lower power.
+It does not dominate pointwise. The improvement in null control comes with slightly lower live-alpha value, which is the expected false-discovery versus power tradeoff.
 
 ## 22. Real-Data Design
 
@@ -160,13 +160,12 @@ The important message is that the math is aligned with the course: filtering, ge
 
 ## 27. What Is Novel Here?
 
-The novelty is the combination: EKV-style Bayesian learning, an economic terminal payoff, an explicit dead state, and empirical tests against placebo-calibrated fixed-horizon rules.
+The novelty is the combination: EKV-style Bayesian learning, an economic terminal payoff, an explicit null-alpha state, and empirical tests against placebo-calibrated fixed-horizon rules.
 
-The project is not just a multiperiod portfolio problem. It is one step earlier: whether an alpha signal should be admitted to production at all.
+The problem is distinct from a standard multiperiod portfolio problem. The decision is one layer earlier: whether the alpha signal should enter the production universe at all.
 
 ## 28. Final Takeaways
 
-The final takeaway is that alpha validation should be modeled as sequential admission. The method decides when to keep learning, when to activate, and when to reject.
+The final takeaway is that alpha validation can be formulated as sequential admission. The method decides when to keep learning, when to activate, and when to reject.
 
 That framing naturally connects the course material to a real quantitative research workflow.
-
