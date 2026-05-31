@@ -5,11 +5,14 @@ and whether their economic interpretation is coherent.
 
 ## Gaussian Boundary Figure
 
-The figure is mathematically coherent, but the geometry is subtle. With high observation
-cost and strong activation decay, the center region near \(m=0\) is not continued; it is
-rejected. The continuation band appears near the static activation threshold because those
-states are close enough to tradeability that one more observation can be valuable. The
-paper caption has been updated to say this explicitly.
+The original figure was mathematically coherent but visually too severe: with
+\(c=0.02\), \(\rho=3\), and \(T=1\), continuation occupied only about \(0.72\%\) of the
+grid. The regenerated figure uses a milder benchmark,
+\(q_0=0.10\), \(\kappa=0.025\), \(c=0.005\), \(\rho=1\), and \(T=2\), and zooms into the
+central posterior-mean range of a wider computational grid. Under this specification,
+continuation occupies about \(11.9\%\) of the grid, rejection about \(2.2\%\), and
+activation about \(85.8\%\). This makes the free-boundary geometry visible without
+changing the model or solver.
 
 ## Gaussian Simulation Comparison
 
@@ -82,6 +85,5 @@ There is no WRDS figure in the paper, but the table matches
 
 The results are internally consistent and support the story. The strongest empirical plot
 is the OSAP fixed-horizon comparison, because it directly tests whether the method is
-more than a fixed-horizon posterior threshold. The weakest visual is the Gaussian
-boundary plot, not because it is wrong, but because its continuation region is subtle; the
-updated caption should prevent misreading.
+more than a fixed-horizon posterior threshold. The Gaussian boundary plot is now also a
+better teaching figure: it visibly shows continue, activate, and reject regions.

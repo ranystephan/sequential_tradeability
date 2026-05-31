@@ -23,20 +23,20 @@ def main() -> None:
     figure_dir = REPO_ROOT / "figures"
     figure_dir.mkdir(exist_ok=True)
 
-    posterior = GaussianPosterior(prior_mean=0.0, prior_variance=0.05)
+    posterior = GaussianPosterior(prior_mean=0.0, prior_variance=0.10)
     payoff = TradeabilityPayoff(
         risk_aversion=1.0,
         return_variance=0.05,
-        implementation_hurdle=0.015,
+        implementation_hurdle=0.025,
     )
-    observation_cost = 0.02
-    activation_decay = 3.0
+    observation_cost = 0.005
+    activation_decay = 1.0
     solution = solve_gaussian_tradeability(
         posterior=posterior,
         payoff_model=payoff,
         observation_cost=observation_cost,
-        horizon=1.0,
-        mean_max=0.8,
+        horizon=2.0,
+        mean_max=1.0,
         activation_decay=activation_decay,
         n_time=301,
         n_mean=401,
@@ -61,7 +61,7 @@ def main() -> None:
     ax.set_xlabel("validation time")
     ax.set_ylabel("posterior mean alpha")
     ax.set_xlim(times[0], times[-1])
-    ax.set_ylim(means[0], means[-1])
+    ax.set_ylim(-0.25, 0.25)
 
     handles = [
         plt.Line2D([0], [0], marker="s", color="none", markerfacecolor="#d9d9d9", markersize=9),
@@ -78,8 +78,8 @@ def main() -> None:
     ax.legend(handles, labels, loc="upper right", frameon=True, fontsize=8)
 
     note = (
-        rf"$q_0=0.05$, $\lambda=1$, $\sigma_r^2=0.05$, "
-        rf"$\kappa=0.015$, $c={observation_cost:g}$, $\rho={activation_decay:g}$"
+        rf"$q_0=0.10$, $\lambda=1$, $\sigma_r^2=0.05$, "
+        rf"$\kappa=0.025$, $c={observation_cost:g}$, $\rho={activation_decay:g}$"
     )
     ax.text(
         0.02,
