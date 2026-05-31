@@ -1,0 +1,712 @@
+\documentclass[aspectratio=169,10pt]{beamer}
+
+\usetheme{default}
+\usefonttheme{professionalfonts}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{mathtools}
+\usepackage{xcolor}
+
+\definecolor{MSEBlue}{RGB}{24,61,104}
+\definecolor{MSEGray}{RGB}{92,101,116}
+\definecolor{MSELight}{RGB}{245,247,250}
+\definecolor{MSEGreen}{RGB}{0,115,88}
+\definecolor{MSERed}{RGB}{170,50,50}
+
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}{
+  \leavevmode%
+  \hbox{%
+  \begin{beamercolorbox}[wd=.72\paperwidth,ht=2.7ex,dp=1.1ex,leftskip=1.8em]{author in head/foot}%
+    \scriptsize Sequential Tradeability Testing for Alpha Signals
+  \end{beamercolorbox}%
+  \begin{beamercolorbox}[wd=.28\paperwidth,ht=2.7ex,dp=1.1ex,rightskip=1.8em plus 1fil]{date in head/foot}%
+    \hfill \scriptsize \insertframenumber/\inserttotalframenumber
+  \end{beamercolorbox}}%
+}
+\setbeamertemplate{itemize item}{\raisebox{0.15ex}{\scriptsize$\blacktriangleright$}}
+\setbeamertemplate{itemize subitem}{\scriptsize$\circ$}
+\setbeamertemplate{blocks}[rounded][shadow=false]
+
+\setbeamercolor{title}{fg=MSEBlue}
+\setbeamercolor{frametitle}{fg=MSEBlue}
+\setbeamercolor{normal text}{fg=black,bg=white}
+\setbeamercolor{structure}{fg=MSEBlue}
+\setbeamercolor{block title}{fg=white,bg=MSEBlue}
+\setbeamercolor{block body}{fg=black,bg=MSELight}
+\setbeamerfont{frametitle}{size=\Large,series=\bfseries}
+\setbeamerfont{title}{size=\LARGE,series=\bfseries}
+\setbeamerfont{subtitle}{size=\large}
+
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\F}{\mathcal{F}}
+\newcommand{\dd}{\,d}
+\newcommand{\wh}{\widehat}
+\newcommand{\1}{\mathbf{1}}
+
+\title{Sequential Tradeability Testing for Alpha Signals}
+\subtitle{A Bayesian optimal stopping view of alpha validation}
+\author{Rany Stephan}
+\institute{MSE342 Project}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+  \vspace{-0.7em}
+  \begin{center}
+    \color{MSEGray}
+    \large When should a quant team stop researching a signal and admit it to live trading?
+  \end{center}
+\end{frame}
+
+\begin{frame}{The object of the project}
+  \begin{center}
+  \large
+  research evidence arrives over time
+  \(\quad\Longrightarrow\quad\)
+  continue, activate, or reject
+  \end{center}
+
+  \vspace{1.0em}
+
+  \begin{block}{Thesis}
+    Alpha validation is not only a fixed-horizon hypothesis test. It is a sequential
+    real-options problem: more evidence has value, but waiting is costly.
+  \end{block}
+
+  \vspace{0.8em}
+  \normalsize
+  The project uses the EKV drift-learning model as the filtering state, then changes the
+  terminal reward from statistical accuracy to economic tradeability.
+\end{frame}
+
+\begin{frame}{Why the usual test is not the right decision problem}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Fixed-horizon test}
+        \[
+          \text{at } T:\quad \text{is the signal significant?}
+        \]
+        \begin{itemize}
+          \item ignores the option value of stopping early;
+          \item ignores the cost of waiting;
+          \item treats weak, dead, and expensive signals too similarly.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Sequential admission}
+        \[
+          \tau:\quad \text{is it worth trading yet?}
+        \]
+        \begin{itemize}
+          \item stop when enough is known;
+          \item reject when the posterior dead state is too likely;
+          \item activate only after uncertainty and costs.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Storyline}
+  \large
+  \begin{enumerate}
+    \item EKV: learn an unknown drift from noisy Brownian evidence.
+    \item Key identity: posterior uncertainty is also the speed of learning.
+    \item Project move: replace EKV's terminal statistical loss with an economic alpha payoff.
+    \item Stress test: Gaussian beliefs work for live signals, but over-activate dead ones.
+    \item Extension: a three-state dead/alive prior makes false discovery explicit.
+    \item Evidence: OSAP and WRDS experiments test whether the rule is useful in data.
+  \end{enumerate}
+\end{frame}
+
+\section{The EKV foundation}
+
+\begin{frame}{EKV starts with drift learning}
+  \Large
+  \[
+    Y_t = X\,t + W_t,\qquad t\ge 0 .
+  \]
+
+  \vspace{0.8em}
+
+  \normalsize
+  \begin{itemize}
+    \item \(X\) is an unknown constant drift drawn from a prior \(\mu\).
+    \item \(Y_t\) is cumulative noisy evidence.
+    \item \(\F_t^Y=\sigma(Y_s:0\le s\le t)\) is the information available to the decision maker.
+  \end{itemize}
+
+  \vspace{0.6em}
+  \begin{block}{Alpha interpretation}
+    \(X\) becomes unknown alpha strength, and \(Y_t\) becomes cumulative normalized
+    signal-aligned evidence.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Bayes' rule gives the posterior state}
+  \Large
+  \[
+    \mu_{t,y}(du)
+    =
+    \frac{\exp\{uy-u^2t/2\}\mu(du)}
+    {\int_{\mathbb R}\exp\{vy-v^2t/2\}\mu(dv)} .
+  \]
+
+  \vspace{0.8em}
+
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      \[
+        \wh X_t = G(t,Y_t)
+      \]
+      \[
+        G(t,y)=\E[X\mid Y_t=y]
+      \]
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \[
+        H(t,y)=\Var(X\mid Y_t=y)
+      \]
+      \[
+        \partial_y G(t,y)=H(t,y)
+      \]
+    \end{column}
+  \end{columns}
+
+  \vspace{0.4em}
+  \normalsize
+  The posterior mean and posterior variance are the low-dimensional state variables.
+\end{frame}
+
+\begin{frame}{The filtering identity}
+  \Large
+  \[
+    \wh W_t
+    =
+    Y_t-\int_0^t\wh X_s\,ds
+  \]
+
+  \vspace{0.4em}
+
+  \[
+    d\wh X_t=\Psi(t,\wh X_t)\,d\wh W_t,
+    \qquad
+    \Psi(t,\wh X_t)=\Var(X\mid \F_t^Y).
+  \]
+
+  \vspace{0.8em}
+  \begin{block}{Intuition}
+    The same quantity, posterior uncertainty, is both the remaining estimation error and
+    the local volatility of the posterior mean. High uncertainty means there is still a
+    lot to learn.
+  \end{block}
+\end{frame}
+
+\begin{frame}{EKV's optimal stopping problem}
+  \Large
+  \[
+    \inf_\tau
+    \E\left[(X-\wh X_\tau)^2+c\tau\right].
+  \]
+
+  \vspace{0.7em}
+
+  \normalsize
+  EKV ask: when should one stop observing and estimate the drift?
+
+  \vspace{1.0em}
+  \Large
+  \[
+    \E[\Psi(\tau,\wh X_\tau)]
+    =
+    \Var(X)
+    -
+    \E\!\left[\int_0^\tau \Psi^2(s,\wh X_s)\dd s\right].
+  \]
+
+  \vspace{0.4em}
+  \normalsize
+  The estimation loss decreases exactly by accumulated learning speed.
+\end{frame}
+
+\begin{frame}{The EKV problem becomes a running-cost problem}
+  \Large
+  \[
+    \inf_\tau
+    \E\left[
+      \int_0^\tau
+      \left(c-\Psi^2(s,\wh X_s)\right)\dd s
+    \right].
+  \]
+
+  \vspace{1.0em}
+
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.45\textwidth}
+      \begin{block}{Cost of waiting}
+        \[
+          c
+        \]
+        observation, time, capacity
+      \end{block}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \begin{block}{Benefit of waiting}
+        \[
+          \Psi^2
+        \]
+        expected reduction in posterior variance
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Two EKV benchmarks we use to validate the math}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Gaussian prior}
+        \[
+          X\sim N(m_0,q_0)
+        \]
+        \[
+          q(t)=\frac{q_0}{1+q_0t},
+          \qquad
+          dm_t=q(t)\,d\wh W_t .
+        \]
+        \[
+          \tau^\star=\left(\frac{1}{\sqrt c}-\frac{1}{q_0}\right)^+ .
+        \]
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Symmetric Bernoulli prior}
+        \[
+          X\in\{-\beta,\beta\}
+        \]
+        \[
+          \Psi(x)=\beta^2-x^2 .
+        \]
+        Stop when the posterior mean exits a symmetric interval.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\section{Our alpha admission problem}
+
+\begin{frame}{The project changes the terminal reward}
+  \Large
+  \[
+    \text{EKV: estimate accurately}
+    \qquad
+    \Longrightarrow
+    \qquad
+    \text{ours: trade only if useful}
+  \]
+
+  \vspace{1.0em}
+
+  \normalsize
+  \begin{block}{Important distinction}
+    The EKV theorem does not directly prove our finance boundary. EKV supplies the
+    posterior dynamics. We define a new economic reward and solve the corresponding
+    optimal stopping problem.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Variable translation}
+  \large
+  \begin{center}
+  \begin{tabular}{lll}
+    \toprule
+    EKV object & & Alpha validation object \\
+    \midrule
+    \(X\) & & unknown alpha strength \\
+    \(Y_t\) & & cumulative normalized evidence \\
+    \(\wh X_t\) & & posterior mean alpha \\
+    \(\Psi\) & & posterior uncertainty and learning speed \\
+    \(c\) & & research cost, delay, opportunity cost \\
+    \(\tau\) & & activation or rejection time \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Economic activation payoff}
+  \Large
+  \[
+    mz-\frac{\lambda}{2}(\sigma_r^2+q)z^2-\kappa .
+  \]
+
+  \vspace{0.6em}
+  \normalsize
+  At stopping, \(m\) is posterior mean alpha and \(q\) is posterior parameter risk.
+  Optimizing over exposure \(z\) gives
+
+  \vspace{0.3em}
+  \Large
+  \[
+    \Phi(m,q)
+    =
+    \left(
+      \frac{m^2}{2\lambda(\sigma_r^2+q)}
+      -\kappa
+    \right)^+ .
+  \]
+
+  \vspace{0.4em}
+  \normalsize
+  \[
+    |m|>\sqrt{2\lambda(\sigma_r^2+q)\kappa}
+  \]
+  is the immediate activation threshold, but not the dynamic stopping boundary.
+\end{frame}
+
+\begin{frame}{The finite-horizon stopping problem}
+  \Large
+  \[
+    V(t,m)
+    =
+    \sup_{\tau\in[t,T]}
+    \E_{t,m}\left[
+      e^{-\rho\tau}\Phi(m_\tau,q(\tau))
+      -
+      \int_t^\tau c\,ds
+    \right].
+  \]
+
+  \vspace{0.7em}
+
+  \normalsize
+  Here \(\rho\) captures alpha decay or opportunity loss during validation.
+
+  \vspace{0.6em}
+  \Large
+  \[
+    \max\left\{
+      e^{-\rho t}\Phi(m,q(t))-V,\,
+      V_t+\frac12 q(t)^2V_{mm}-c
+    \right\}=0 .
+  \]
+\end{frame}
+
+\begin{frame}{What the boundary means}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.56\textwidth}
+      \includegraphics[width=\linewidth]{../figures/gaussian_tradeability_boundary.pdf}
+    \end{column}
+    \begin{column}{0.40\textwidth}
+      \begin{itemize}
+        \item Red: stop and activate.
+        \item Gray: stop and reject.
+        \item Blue: continue observing.
+        \item Dashed curves: static activation threshold.
+      \end{itemize}
+      \vspace{0.7em}
+      The continuation region is not the set where payoff is positive. It is where one
+      more observation has positive option value.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{First stress test: Gaussian beliefs}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.58\textwidth}
+      \includegraphics[width=\linewidth]{../figures/simulation_policy_comparison.pdf}
+    \end{column}
+    \begin{column}{0.38\textwidth}
+      \begin{block}{What works}
+        For large \(|\theta|\), the dynamic boundary captures learning option value and
+        improves realized economic value.
+      \end{block}
+      \begin{block}{What fails}
+        At \(\theta=0\), the Gaussian prior activates about \(90.1\%\) of null paths.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Why this failure is informative}
+  \Large
+  \[
+    X\sim N(0,q_0)
+    \quad \Rightarrow \quad
+    \mathbb P(X=0)=0 .
+  \]
+
+  \vspace{1.0em}
+  \normalsize
+  In finance, many researched signals are exactly dead in the economic sense:
+  they are not small live alphas, they are false discoveries or implementation artifacts.
+
+  \vspace{0.8em}
+  \begin{block}{Modeling implication}
+    A signal-admission model should assign posterior mass to the event
+    ``this signal has no alpha.''
+  \end{block}
+\end{frame}
+
+\section{Dead/alive alpha prior}
+
+\begin{frame}{A three-state prior for signal research}
+  \Large
+  \[
+    \theta\in\{-a,0,+a\}.
+  \]
+
+  \vspace{0.8em}
+
+  \begin{center}
+  \begin{tabular}{cl}
+    \toprule
+    State & Interpretation \\
+    \midrule
+    \(-a\) & live short signal \\
+    \(0\) & dead signal \\
+    \(+a\) & live long signal \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+
+  \vspace{0.8em}
+  \normalsize
+  This prior is not a cosmetic change. It changes what the posterior can learn.
+\end{frame}
+
+\begin{frame}{Posterior probabilities under the dead/alive prior}
+  \Large
+  \[
+    \pi_i(t,y)
+    =
+    \frac{
+      p_i\exp\{\theta_i y-\theta_i^2t/2\}
+    }{
+      \sum_j p_j\exp\{\theta_j y-\theta_j^2t/2\}
+    } .
+  \]
+
+  \vspace{0.7em}
+  \[
+    m(t,y)=\sum_i\pi_i(t,y)\theta_i,
+    \qquad
+    q(t,y)=\sum_i\pi_i(t,y)\theta_i^2-m(t,y)^2 .
+  \]
+
+  \vspace{0.5em}
+  \normalsize
+  If \(y\) stays near zero while time passes, \(\pi_0(t,y)\) rises because live alphas
+  would likely have generated directional evidence.
+\end{frame}
+
+\begin{frame}{Dead-state penalty}
+  \Large
+  \[
+    \Phi_\eta(t,y)
+    =
+    e^{-\rho t}
+    \left(
+      \frac{m(t,y)^2}{2\lambda(\sigma_r^2+q(t,y))}
+      -\kappa-\eta\pi_0(t,y)
+    \right)^+ .
+  \]
+
+  \vspace{0.8em}
+  \normalsize
+  The penalty \(\eta\pi_0(t,y)\) prices the cost of admitting a false discovery.
+
+  \vspace{0.6em}
+  \Large
+  \[
+    \max\left\{
+      \Phi_\eta(t,y)-V,\,
+      V_t+m(t,y)V_y+\frac12V_{yy}-c
+    \right\}=0 .
+  \]
+\end{frame}
+
+\begin{frame}{Controlled validation of the dead/alive rule}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.58\textwidth}
+      \includegraphics[width=\linewidth]{../figures/dead_alive_policy_comparison.pdf}
+    \end{column}
+    \begin{column}{0.38\textwidth}
+      \begin{block}{Null activation}
+        \[
+          47.1\% \to 39.8\%
+        \]
+        matched Gaussian boundary versus dead/alive boundary.
+      \end{block}
+      \begin{block}{Null realized value}
+        \[
+          -0.00560 \to -0.00513
+        \]
+      \end{block}
+      The cost is slightly lower live-alpha value, which is the expected
+      false-discovery versus power tradeoff.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\section{Real data}
+
+\begin{frame}{Real-data design}
+  \large
+  \begin{center}
+  \begin{tabular}{ll}
+    \toprule
+    Data & Chen-Zimmermann OSAP long-short monthly returns \\
+    Eligible signals & 192 predictors with enough history \\
+    Calibration & 120 months \\
+    Sequential validation & up to 240 months \\
+    Holdout & 120 post-decision months \\
+    Evidence increment & \(\Delta Y_t=(r_t/\widehat\sigma_m)\sqrt{dt}\) \\
+    Placebo & sign-flipped validation returns \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+
+  \vspace{0.6em}
+  \normalsize
+  Under a null with monthly variance \(\widehat\sigma_m^2\),
+  \(\Var(\Delta Y_t)\approx dt\), so evidence is on Brownian scale.
+\end{frame}
+
+\begin{frame}{Penalty calibration with real signals and placebos}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.58\textwidth}
+      \includegraphics[width=\linewidth]{../figures/osap_penalty_sweep.pdf}
+    \end{column}
+    \begin{column}{0.38\textwidth}
+      \begin{block}{At \(\eta=0.04\)}
+        \[
+          \text{real activation}=72.9\%
+        \]
+        \[
+          \text{placebo activation}=27.1\%
+        \]
+      \end{block}
+      Higher false-discovery penalties reduce both rates, but reduce placebo activation
+      faster.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Is the rule really sequential?}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.58\textwidth}
+      \includegraphics[width=\linewidth]{../figures/osap_static_benchmark_comparison.pdf}
+    \end{column}
+    \begin{column}{0.38\textwidth}
+      \begin{block}{Sequential rule}
+        \[
+          72.9\% \text{ real activation}
+        \]
+        \[
+          47.9 \text{ month average decision time}
+        \]
+        \[
+          0.545 \text{ activation-weighted holdout}
+        \]
+      \end{block}
+      Fixed 120- and 240-month tests activate more signals, but require much longer waits
+      and have weaker activation-weighted holdout returns.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{WRDS stock-level reconstruction}
+  \large
+  \begin{center}
+  \begin{tabular}{lrrrr}
+    \toprule
+    Return stream & \(N\) & Active & Standard active & Std. holdout \\
+    \midrule
+    Gross stock-level & 3 & 3 & 3 & \(1.227\%\) \\
+    Net range-cost stress & 3 & 3 & 0 & -- \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+
+  \vspace{0.8em}
+  \normalsize
+  The gross result says the reconstructed signals are tradeable before costs. The net
+  range-cost result says the conclusion is fragile under a harsh cost stress test.
+
+  \vspace{0.4em}
+  This is the right empirical tension for the project: admission must survive uncertainty
+  and implementation frictions.
+\end{frame}
+
+\section{Checks and conclusion}
+
+\begin{frame}{Mathematical and numerical checks}
+  \large
+  \begin{itemize}
+    \item Posterior probabilities remain positive and sum to one.
+    \item \(\partial_y G(t,y)=H(t,y)\) and \(\partial_y m(t,y)=q(t,y)\) are checked numerically.
+    \item Gaussian posterior precision update matches the closed form.
+    \item The obstacle solver satisfies terminal value, symmetry, and monotonicity tests.
+    \item Dead/alive finite-difference diagnostics: zero obstacle violation, zero terminal error,
+      symmetry error \(4.2\times10^{-16}\).
+    \item Grid convergence: the paper grid has \(V(0,0)\) error below \(9\times10^{-5}\)
+      relative to the fine grid.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{What is novel here?}
+  \large
+  \begin{itemize}
+    \item The EKV filtering state is used for alpha validation rather than drift estimation alone.
+    \item The terminal payoff is economic: posterior alpha must clear risk, uncertainty, and costs.
+    \item The dead/alive prior makes false discovery a state variable, not just an after-the-fact error.
+    \item The empirical test asks whether sequential stopping beats fixed-horizon posterior tests
+      at matched placebo activation.
+  \end{itemize}
+
+  \vspace{0.8em}
+  \begin{block}{One-line conclusion}
+    Alpha validation is a sequential admission problem, not just a significance test.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Final takeaways}
+  \Large
+  \begin{enumerate}
+    \item EKV gives a rigorous Bayesian learning state.
+    \item Economic tradeability changes the stopping reward.
+    \item Gaussian beliefs reveal the learning option value, but miss dead alphas.
+    \item A dead/alive prior reduces false activation in simulation and placebo tests.
+    \item Real data suggest the sequential rule admits useful signals earlier than fixed-horizon tests.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{References}
+  \small
+  \begin{thebibliography}{9}
+    \bibitem{ekv}
+    Ekstrom, Karatzas, and Vaicenavicius.
+    \newblock Bayesian Sequential Least-Squares Estimation for the Drift of a Wiener Process.
+    \newblock \emph{Stochastic Processes and their Applications}, 2022.
+
+    \bibitem{cz}
+    Chen and Zimmermann.
+    \newblock Open Source Cross-Sectional Asset Pricing.
+    \newblock \emph{Critical Finance Review}, 2022.
+
+    \bibitem{cv}
+    Chen and Velikov.
+    \newblock Zeroing In on the Expected Returns of Anomalies.
+    \newblock \emph{Journal of Financial and Quantitative Analysis}, 2023.
+  \end{thebibliography}
+\end{frame}
+
+\end{document}

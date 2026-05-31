@@ -15,6 +15,13 @@ paper/*.out
 paper/*.pdf
 paper/*.run.xml
 paper/*.synctex.gz
+slides/*.aux
+slides/*.log
+slides/*.nav
+slides/*.out
+slides/*.snm
+slides/*.toc
+slides/preview/slide-*.png
 data/raw/*.csv
 data/raw/wrds/
 data/processed/wrds_*.csv
