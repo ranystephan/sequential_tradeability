@@ -94,6 +94,10 @@ then the posterior mean satisfies
     d\widehat X_t = \Psi(t,\widehat X_t)\,d\widehat W_t.
     \label{eq:posterior_mean_sde}
 \end{equation}
+For the non-degenerate priors used below, \(G_t\) is increasing because
+\(\partial_yG(t,y)=H(t,y)>0\), so the inverse in \eqref{eq:psi_definition} is
+well-defined on the range of posterior means.  In the finite-prior implementation we
+also check this derivative identity numerically.
 The same function \(\Psi\) is also the conditional mean-squared error:
 \begin{equation}
     \Psi(t,\widehat X_t)
@@ -341,7 +345,10 @@ interpretation:
 \end{itemize}
 
 The code solves \eqref{eq:tradeability_vi} by backward implicit Euler on a uniform grid in
-\((t,m)\), with the mean-domain boundaries pinned to the immediate stopping payoff.  The
+\((t,m)\), with the mean-domain boundaries pinned to the immediate stopping payoff.  This
+is the numerical analogue of the lecture's dynamic-programming and viscosity-solution
+view of optimal stopping: the value may kink at the free boundary, so the obstacle
+problem is the primary object rather than a globally smooth classical PDE.  The
 implementation is validated against exact activation thresholds, symmetry in \(m\), the
 zero-payoff no-continuation case, monotonic decline of value as observation cost rises, and
 early exercise of strong alpha when \(\rho>0\).
@@ -512,6 +519,11 @@ The next computational step is to solve the finite-horizon obstacle problem in
     0.
     \label{eq:three_state_vi}
 \end{equation}
+Here the continuation generator is
+\(\mathcal L_t f(y)=m(t,y)f_y(y)+\frac12 f_{yy}(y)\), exactly the infinitesimal
+generator associated with \eqref{eq:three_state_innovation}.  The implementation uses a
+monotone upwind discretization of this generator before applying the obstacle, which is
+the standard finite-difference safeguard for a viscosity-solution free-boundary problem.
 The main testable prediction is that the dead/alive policy should reduce false activation
 when \(\theta=0\), while preserving activation power when \(\theta=\pm a\).
 
