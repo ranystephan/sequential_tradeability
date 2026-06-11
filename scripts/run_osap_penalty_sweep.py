@@ -116,7 +116,7 @@ def main() -> None:
     ax.plot(penalties_array, placebo_activation, marker="o", label="sign-flip placebo")
     ax.plot(penalties_array, activation_gap, marker="o", label="activation gap")
     ax.axvline(0.04, color="black", linewidth=0.9, linestyle="--")
-    ax.set_xlabel("dead-activation penalty eta")
+    ax.set_xlabel("false-discovery penalty eta")
     ax.set_ylabel("rate")
     ax.set_ylim(0.0, 1.05)
     ax.set_title("OSAP admission sensitivity to false-discovery penalty")
