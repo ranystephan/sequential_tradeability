@@ -21,6 +21,10 @@
 \usepackage{xcolor}
 \definecolor{linkblue}{RGB}{0,60,120}
 \usepackage[colorlinks=true, linkcolor=linkblue, citecolor=linkblue, urlcolor=linkblue]{hyperref}
+\hypersetup{
+  pdftitle={Sequential Tradeability Testing for Alpha Signals},
+  pdfauthor={Rany Stephan}
+}
 
 \graphicspath{{../figures/}}
 
@@ -139,10 +143,11 @@ quantify backtest overfitting.  These papers adjust the \emph{threshold} of a
 fixed-horizon test.  Our contribution is to make the \emph{horizon} itself a choice
 variable and to price the decision in economic units (risk-adjusted profit net of
 an implementation hurdle and a false-discovery penalty) rather than in test statistics.
-On the cost side, \citet{novyMarxVelikov2016} show that trading costs eliminate the
-profits of high-turnover anomalies, and \citet{chenVelikov2023} find that the average
-anomaly's net expected return is close to zero; our stock-level feasibility check
-illustrates the same sensitivity through the admission decision.
+On the cost side, \citet{novyMarxVelikov2016} find that cost mitigation leaves many
+lower-turnover anomalies with significant net spreads but few higher-turnover ones,
+and \citet{chenVelikov2023} find that the average anomaly's net expected return is
+close to zero; our stock-level feasibility check illustrates the same sensitivity
+through the admission decision.
 
 \section{Sequential Evidence Model}
 \label{sec:model}
@@ -377,8 +382,8 @@ $z$-statistic rule.
 The comparison delivers one positive and one negative result.  For strong signals
 ($|\theta|=0.3$) the dynamic boundary earns a mean realized value of about $0.019$,
 far above both baselines: it defers activation until the posterior is precise enough
-to size the position well.  But at $\theta=0$ the Gaussian rule activates 90.1\% of
-paths, with mean value $-0.0157$.  This failure is built into the prior.  A Gaussian
+to size the position well.  But at $\theta=0$ the Gaussian rule activates 87.0\% of
+paths, with mean value $-0.0156$.  This failure is built into the prior.  A Gaussian
 prior assigns zero probability to the event $X=0$, so the posterior probability of a
 dead signal is identically zero no matter how flat the evidence.  Over the validation
 horizon the posterior mean wanders enough that most null paths cross the activation
@@ -485,7 +490,7 @@ benchmark whose prior variance $0.045$ equals the three-state prior's second mom
 The penalty is $\eta=0.002$.  The trading payoff, decay, and horizon match
 Section~\ref{sec:simulation}; the observation cost is $c=0.002$, and each strength
 uses 20{,}000 paths.  The Gaussian null activation rate here (47.1\% below) differs
-from Section~\ref{sec:simulation}'s 90.1\% because the prior variance and the
+from Section~\ref{sec:simulation}'s 87.0\% because the prior variance and the
 observation cost both differ; within this experiment the two rules share every
 parameter, so the only difference between them is the explicit dead state and its
 penalty.  The finite-difference diagnostics hold at machine precision: zero obstacle
@@ -704,8 +709,9 @@ subtracts turnover times a monthly high-low range cost proxy
 (Table~\ref{tab:wrds_stock_level}).  This experiment is a demonstration, not a
 measurement: three known-positive signals cannot discriminate among rules, and the
 range proxy removes 13.20\%, 5.15\%, and 3.08\% per month from momentum,
-book-to-market, and operating profitability, an order of magnitude or more above
-effective-spread estimates for such portfolios \citep{chenVelikov2023}.
+book-to-market, and operating profitability, deliberately harsher than the
+effective-spread approach used in anomaly net-return studies such as
+\citet{chenVelikov2023}.
 
 \begin{table}[t]
 \centering
