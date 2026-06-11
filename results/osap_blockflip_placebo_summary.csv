@@ -1,0 +1,2 @@
+n_replications,block_months,real_activation_rate,placebo_rate_mean,placebo_rate_std,placebo_rate_min,placebo_rate_q025,placebo_rate_q975,placebo_rate_max
+200,12,0.7291666666666666,0.5053645833333333,0.027618755231346583,0.421875,0.4583333333333333,0.5626302083333333,0.6041666666666666

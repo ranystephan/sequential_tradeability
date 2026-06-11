@@ -259,6 +259,34 @@ def sign_flip_evidence(
     )
 
 
+def block_sign_flip_evidence(
+    evidence: SignalEvidence,
+    rng: np.random.Generator,
+    *,
+    block_months: int = 12,
+    suffix: str = "_blockflip",
+) -> SignalEvidence:
+    """Return a block sign-flipped placebo evidence stream.
+
+    One random sign is drawn per consecutive block of ``block_months`` increments, so
+    serial dependence of signed returns is preserved within blocks while directional
+    drift is still destroyed in expectation.
+    """
+    if block_months < 1:
+        raise ValueError("block_months must be positive")
+    n = evidence.increments.size
+    n_blocks = -(-n // block_months)
+    block_signs = rng.choice(np.array([-1.0, 1.0]), size=n_blocks)
+    signs = np.repeat(block_signs, block_months)[:n]
+    increments = evidence.increments * signs
+    return replace(
+        evidence,
+        name=f"{evidence.name}{suffix}",
+        increments=increments,
+        observations=np.concatenate([[0.0], np.cumsum(increments)]),
+    )
+
+
 def static_three_state_score(
     *,
     prior: ThreeStatePrior,

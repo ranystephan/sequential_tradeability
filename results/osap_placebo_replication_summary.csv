@@ -1,0 +1,2 @@
+n_replications,n_signals,real_activation_rate,placebo_rate_mean,placebo_rate_std,placebo_rate_min,placebo_rate_q025,placebo_rate_q975,placebo_rate_max,paper_draw_rate
+200,192,0.7291666666666666,0.3001041666666666,0.029928981114044736,0.21875,0.24479166666666666,0.35429687500000007,0.3697916666666667,0.2708333333333333

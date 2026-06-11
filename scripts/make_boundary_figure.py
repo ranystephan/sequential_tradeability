@@ -57,6 +57,65 @@ def main() -> None:
     ax.plot(times, -thresholds, color="black", linewidth=1.3, linestyle="--")
     ax.axhline(0.0, color="white", linewidth=0.8, alpha=0.8)
 
+    # Overlay two illustrative posterior-mean paths dm_t = q(t) dW_t, truncated at
+    # the first exit from the continuation region (one activates, one rejects).
+    q0 = posterior.prior_variance
+    horizon = times[-1]
+    n_steps = 500
+    dt = horizon / n_steps
+    path_times = np.linspace(0.0, horizon, n_steps + 1)
+
+    def simulate(seed: int) -> np.ndarray:
+        rng = np.random.default_rng(seed)
+        path = np.zeros(n_steps + 1)
+        for i in range(n_steps):
+            q = q0 / (1.0 + q0 * path_times[i])
+            path[i + 1] = path[i] + q * np.sqrt(dt) * rng.standard_normal()
+        return path
+
+    def region_at(t: float, m_value: float) -> int:
+        ti = int(np.clip(np.searchsorted(times, t), 0, len(times) - 1))
+        mi = int(np.clip(np.searchsorted(means, m_value), 0, len(means) - 1))
+        return int(regions[ti, mi])
+
+    def first_exit(path: np.ndarray) -> tuple[int, int]:
+        for k in range(1, len(path)):
+            r = region_at(path_times[k], path[k])
+            if r != 0:
+                return k, r
+        return len(path) - 1, 0
+
+    activate_path = None
+    reject_path = None
+    for seed in range(400):
+        path = simulate(seed)
+        k, outcome = first_exit(path)
+        if outcome == 1 and activate_path is None and 0.5 < path_times[k] < 1.9:
+            activate_path = (path_times[: k + 1], path[: k + 1], path_times[k], path[k])
+        if outcome == -1 and reject_path is None and path_times[k] > 0.95:
+            reject_path = (path_times[: k + 1], path[: k + 1], path_times[k], path[k])
+        if activate_path is not None and reject_path is not None:
+            break
+
+    for entry, exit_color, label, dy in (
+        (activate_path, "#b2182b", "activate", 7),
+        (reject_path, "#3a3a3a", "reject", -13),
+    ):
+        if entry is None:
+            continue
+        pt, pm, ex_t, ex_m = entry
+        ax.plot(pt, pm, color="black", linewidth=1.6, solid_capstyle="round", zorder=4)
+        ax.plot([ex_t], [ex_m], marker="o", color=exit_color, markersize=6, zorder=5)
+        ax.annotate(
+            label,
+            (ex_t, ex_m),
+            textcoords="offset points",
+            xytext=(6, dy),
+            color=exit_color,
+            fontsize=8,
+            fontweight="bold",
+        )
+
     ax.set_title("Sequential tradeability boundary, Gaussian belief")
     ax.set_xlabel("validation time")
     ax.set_ylabel("posterior mean alpha")

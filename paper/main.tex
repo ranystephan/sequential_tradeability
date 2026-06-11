@@ -3,12 +3,32 @@
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath, amssymb, amsthm, bm}
 \usepackage{booktabs}
+\usepackage{makecell}
 \usepackage{graphicx}
-\usepackage{hyperref}
+\usepackage[font=small,skip=6pt]{caption}
+\usepackage{titlesec}
+\titlespacing*{\section}{0pt}{14pt plus 3pt minus 3pt}{7pt plus 2pt}
+\titlespacing*{\subsection}{0pt}{10pt plus 2pt minus 2pt}{5pt plus 1pt}
+\usepackage[round]{natbib}
+\setlength{\bibsep}{1pt plus 0.3pt}
+\AtBeginDocument{%
+  \setlength{\abovedisplayskip}{5pt plus 2pt minus 2pt}%
+  \setlength{\belowdisplayskip}{5pt plus 2pt minus 2pt}%
+  \setlength{\abovedisplayshortskip}{3pt plus 1pt}%
+  \setlength{\belowdisplayshortskip}{3pt plus 1pt}%
+}
+\usepackage{xurl}
+\usepackage{xcolor}
+\definecolor{linkblue}{RGB}{0,60,120}
+\usepackage[colorlinks=true, linkcolor=linkblue, citecolor=linkblue, urlcolor=linkblue]{hyperref}
+
+\graphicspath{{../figures/}}
 
 \title{Sequential Tradeability Testing for Alpha Signals}
-\author{Rany Stephan}
-\date{\today}
+\author{Rany Stephan\thanks{Stanford University, \texttt{ranycs@stanford.edu}.  All
+reported numbers come from fixed-seed scripts in the replication repository, available
+from the author.}}
+\date{June 2026}
 
 \newtheorem{proposition}{Proposition}
 
@@ -16,118 +36,168 @@
 \maketitle
 
 \begin{abstract}
-Many candidate alpha signals have positive historical predictive content but fail after
-uncertainty, decay, turnover, and market impact are considered.  This project studies
-alpha validation as a sequential decision problem.  Starting from the Bayesian drift
-estimation framework of Ekstrom, Karatzas, and Vaicenavicius
-\cite{ekstromKaratzasVaicenavicius2022}, we model the evidence for an alpha signal as a
-noisy observation process with an unknown drift.  The posterior mean and posterior
-variance form the state variables, and the decision to continue observing, activate, or
-reject the signal becomes an optimal stopping problem.  The project derives the
-filtering identities, replaces EKV's statistical terminal loss with an economic
-tradeability payoff, and tests the resulting boundary on simulated, OSAP, and WRDS
-stock-level evidence.
+\noindent
+Many candidate alpha signals look profitable in a backtest but fail once estimation
+uncertainty, alpha decay, and implementation costs are taken into account.  We model
+alpha validation as a sequential decision problem: a researcher observes a noisy
+evidence process whose unknown drift is the signal's strength and chooses, at each
+instant, whether to continue observing, activate the signal, or reject it.  The
+filtering state follows the Bayesian drift-estimation framework of Ekstr\"om, Karatzas,
+and Vaicenavicius (2022); the terminal reward replaces their statistical loss with an
+economic tradeability payoff (risk-adjusted profit net of an implementation hurdle and
+a false-discovery penalty), and the optimal policy is the free boundary of a
+variational inequality that we solve numerically.  On 192 anomaly portfolios from the
+Open Source Asset Pricing dataset, the rule activates 72.9\% of real signals but only
+27.1\% of drift-destroyed placebos, and it decides in 48 months on average.  Its
+activation-weighted post-decision returns are higher in point estimate than those of
+placebo-calibrated fixed-horizon tests at 60, 120, and 240 months.  A stock-level CRSP/Compustat reconstruction of three
+canonical signals survives in gross returns but fails a conservative transaction-cost
+stress test.
 \end{abstract}
 
-The thesis is that alpha validation is not a fixed-horizon hypothesis test.  It is a
-sequential real-options problem: continuing research has option value because future
-evidence may make an ambiguous signal tradeable, but delay is costly because capital,
-research time, and alpha decay matter.
+\medskip
+\noindent\textbf{Keywords:} alpha validation, sequential analysis, optimal stopping,
+Bayesian filtering, multiple testing, transaction costs.
 
-\section{Base Sequential Estimation Model}
+\section{Introduction}
 
-Let \(X\) denote the unknown strength of a candidate alpha signal.  In the base model,
-we observe a noisy evidence process
+Quantitative researchers face a steady stream of candidate alpha signals, and most of
+them are not worth trading.  The academic anomaly literature alone contains hundreds
+of published predictors.  The standard response to this multiplicity has been
+statistical: raise the $t$-statistic hurdle to account for data mining
+\citep{harveyLiuZhu2016}, discount backtests for overfitting
+\citep{baileyBorweinLopezdePradoZhu2017}, and expect post-publication returns to decay
+\citep{mcleanPontiff2016}.  These corrections share a common structure.  They treat
+validation as a fixed-horizon hypothesis test: collect a sample of given length,
+compute a statistic, compare it with a threshold.
+
+This paper starts from a different premise: alpha validation is a sequential
+real-options problem, not a fixed-horizon test.  Continuing to observe a candidate
+signal has option value, because future evidence may turn an ambiguous signal into a
+tradeable one.  But delay is costly, because research capacity is scarce and deployable
+alpha decays.  The natural formalization is optimal stopping.  At each point in time,
+the researcher compares the value of stopping now with the value of paying the
+observation cost and learning more.  Stopping means activating the signal if its
+risk-adjusted posterior value clears an implementation hurdle, and rejecting it
+otherwise.
+
+We build this formalization in three steps.  First, we model accumulated evidence as a
+Brownian motion whose unknown drift is the signal's true strength, and we adopt the
+Bayesian filtering framework of \citet{ekstromKaratzasVaicenavicius2022} (henceforth
+EKV).  In this framework the posterior mean and variance form the decision state, and
+the posterior variance plays a dual role: it is both the remaining estimation error
+and the local volatility of learning.  Second, we replace EKV's statistical terminal
+loss with an economic tradeability payoff: the optimized mean-variance value of
+trading at the posterior belief, net of a fixed implementation hurdle, with the option
+to reject.  Because the reward changes, the EKV optimality results no longer apply.
+We therefore solve the new finite-horizon obstacle problem numerically and validate
+the solver against the closed-form benchmarks that the EKV framework provides.  Third,
+we introduce a three-state dead/alive prior and a false-discovery penalty, charged in
+posterior expectation when a dead signal is admitted.  The motivation comes from
+simulation: a Gaussian prior assigns zero probability to a truly dead signal and
+therefore over-activates pure noise.
+
+The empirical question is whether the sequential rule earns its complexity on real
+data.  We test it on monthly long-short returns for 192 anomaly portfolios from the
+Open Source Asset Pricing dataset \citep{chenZimmermann2022}, against placebos that
+destroy directional drift while preserving each signal's volatility profile.  Three
+findings stand out.  First, the rule separates signal from noise: it activates 72.9\%
+of real signals and 27.1\% of placebos.  Second, the rule is genuinely sequential.
+Against fixed-horizon posterior tests calibrated to the same placebo activation count,
+it reaches nearly the activation power of a 240-month test while deciding in 48 months
+on average, and its gains in activation-weighted post-decision returns over the 60-,
+120-, and 240-month benchmarks are consistently positive, though imprecisely
+estimated.  Third, costs matter: in a stock-level CRSP/Compustat reconstruction,
+momentum, book-to-market, and operating profitability are all admitted on gross
+returns, yet none survives a deliberately harsh transaction-cost stress test.
+
+Section~\ref{sec:related} positions the paper; Sections
+\ref{sec:model}--\ref{sec:deadalive} develop the model;
+Section~\ref{sec:empirics} contains the real-data experiments;
+Section~\ref{sec:conclusion} concludes.
+
+\section{Related Work}
+\label{sec:related}
+
+The mathematical machinery comes from sequential analysis.  The idea that evidence
+should be collected until it is decisive, rather than for a fixed span, goes back to
+the sequential probability ratio test of \citet{wald1945}; continuous-time,
+free-boundary formulations are developed in \citet{shiryaev2008} and
+\citet{peskirShiryaev2006}.  Our state process is taken directly from
+\citet{ekstromKaratzasVaicenavicius2022}, who characterize optimal stopping rules for
+Bayesian least-squares estimation of a Wiener drift.  We preserve their filtering
+structure but change the terminal reward from estimation accuracy to economic
+tradeability, which yields a new obstacle problem.
+
+The application speaks to the factor-validation literature.
+\citet{harveyLiuZhu2016} argue that multiple testing requires substantially higher
+$t$-statistic hurdles for new factors; \citet{mcleanPontiff2016} document
+post-publication decay of anomaly returns; \citet{baileyBorweinLopezdePradoZhu2017}
+quantify backtest overfitting.  These papers adjust the \emph{threshold} of a
+fixed-horizon test.  Our contribution is to make the \emph{horizon} itself a choice
+variable and to price the decision in economic units (risk-adjusted profit net of
+implementation costs and a false-discovery penalty) rather than in test statistics.
+On the cost side, \citet{novyMarxVelikov2016} and \citet{chenVelikov2023} show that
+trading costs eliminate much of anomaly profits; our stock-level stress test reaches
+the same conclusion through the admission decision.
+
+\section{Sequential Evidence Model}
+\label{sec:model}
+
+\subsection{Filtering state}
+
+Let $X$ denote the unknown strength of a candidate alpha signal.  Evidence accumulates
+as the observation process
 \begin{equation}
     Y_t = X\,t + W_t, \qquad t \ge 0,
     \label{eq:observation_model}
 \end{equation}
-where \(W\) is a standard Brownian motion independent of \(X\).  The prior distribution
-of \(X\) is denoted by \(\mu\), and the observation filtration is
-\[
-    \mathcal F_t^Y = \sigma(Y_s:0\le s\le t).
-\]
-In the alpha interpretation, \(Y_t\) can be read as cumulative signal evidence, such as
-cumulative signal-aligned residual return or cumulative information coefficient, after
-appropriate normalization.
-
-The least-squares estimate of \(X\) is the posterior mean
-\begin{equation}
-    \widehat X_t = \mathbb E[X\mid \mathcal F_t^Y].
-\end{equation}
-For any prior with finite second moment, Bayes' rule gives the posterior distribution
+where $W$ is a standard Brownian motion independent of $X$, and $X$ has prior
+distribution $\mu$ with finite second moment.  In the alpha-validation reading, $Y_t$
+is cumulative normalized evidence, for instance cumulative risk-scaled long-short
+return, and $X$ is an annualized Sharpe-like strength; Section~\ref{sec:osap_protocol}
+makes this normalization precise for monthly returns.  Writing
+$\mathcal F_t^Y=\sigma(Y_s:0\le s\le t)$ for the observation filtration, Bayes' rule
+gives the posterior
 \begin{equation}
     \mu_{t,y}(du)
     =
-    \frac{\exp\{uy-u^2t/2\}\mu(du)}
-    {\int_{\mathbb R}\exp\{vy-v^2t/2\}\mu(dv)}.
+    \frac{\exp\{uy-u^2t/2\}\,\mu(du)}
+    {\int_{\mathbb R}\exp\{vy-v^2t/2\}\,\mu(dv)},
     \label{eq:posterior}
 \end{equation}
-Thus the posterior mean and posterior variance are
-\begin{align}
-    G(t,y)
-    &=
-    \frac{\int_{\mathbb R}u\exp\{uy-u^2t/2\}\mu(du)}
-    {\int_{\mathbb R}\exp\{uy-u^2t/2\}\mu(du)},\\
-    H(t,y)
-    &=
-    \int_{\mathbb R}(u-G(t,y))^2\mu_{t,y}(du).
-\end{align}
-The estimate is therefore \(\widehat X_t=G(t,Y_t)\).
+with posterior mean $G(t,y)=\int u\,\mu_{t,y}(du)$ and posterior variance
+$H(t,y)=\int(u-G(t,y))^2\mu_{t,y}(du)$, so that
+$\widehat X_t=\mathbb E[X\mid\mathcal F_t^Y]=G(t,Y_t)$.
 
-\section{Filtering Identity}
-
-The innovation process is
+The innovation process $\widetilde W_t=Y_t-\int_0^t\widehat X_s\,ds$ is a Brownian
+motion in $\mathcal F_t^Y$.  Differentiating the exponential tilt in
+\eqref{eq:posterior} gives $\partial_yG(t,y)=H(t,y)>0$ for non-degenerate priors, so
+$G_t=G(t,\cdot)$ is invertible on the range of posterior means and
 \begin{equation}
-    \widehat W_t
-    =
-    Y_t-\int_0^t \widehat X_s\,ds.
-\end{equation}
-It is a Brownian motion in the observation filtration.  If \(G_t(\cdot)=G(t,\cdot)\)
-and
-\begin{equation}
-    \Psi(t,x) = H(t,G_t^{-1}(x)),
-    \label{eq:psi_definition}
-\end{equation}
-then the posterior mean satisfies
-\begin{equation}
-    d\widehat X_t = \Psi(t,\widehat X_t)\,d\widehat W_t.
+    d\widehat X_t = \Psi(t,\widehat X_t)\,d\widetilde W_t,
+    \qquad
+    \Psi(t,x) = H\bigl(t,G_t^{-1}(x)\bigr).
     \label{eq:posterior_mean_sde}
 \end{equation}
-For the non-degenerate priors used below, \(G_t\) is increasing because
-\(\partial_yG(t,y)=H(t,y)>0\), so the inverse in \eqref{eq:psi_definition} is
-well-defined on the range of posterior means.  In the finite-prior implementation we
-also check this derivative identity numerically.
-The same function \(\Psi\) is also the conditional mean-squared error:
-\begin{equation}
-    \Psi(t,\widehat X_t)
-    =
-    \operatorname{Var}(X\mid \mathcal F_t^Y).
-\end{equation}
-This dual role is the mathematical reason the problem admits a clean stopping
-formulation: posterior uncertainty is both the remaining estimation error and the local
-volatility of the posterior mean.
+The posterior mean is therefore an $\mathcal F_t^Y$-martingale, and the same function
+$\Psi$ is also the conditional variance,
+$\Psi(t,\widehat X_t)=\operatorname{Var}(X\mid\mathcal F_t^Y)$.  This dual role makes
+the problem a clean stopping problem: posterior uncertainty is simultaneously the
+remaining estimation error and the local volatility of learning.
 
-\section{Optimal Stopping Interpretation}
+\subsection{The EKV benchmark and two closed-form cases}
+\label{sec:ekv}
 
-Ekstrom, Karatzas, and Vaicenavicius \cite{ekstromKaratzasVaicenavicius2022} study
-\begin{equation}
-    \inf_{\tau}
-    \mathbb E\left[(X-\widehat X_\tau)^2+c\tau\right],
-    \label{eq:ekv_objective}
-\end{equation}
-where \(c>0\) is the observation cost per unit time.  Since
-\[
-    \mathbb E[(X-\widehat X_\tau)^2]
-    =
-    \mathbb E[\Psi(\tau,\widehat X_\tau)],
-\]
-the objective can be written in posterior-variance form.
+EKV study the statistical stopping problem
+$\inf_{\tau}\mathbb E[(X-\widehat X_\tau)^2+c\tau]$, where $c>0$ is the observation
+cost per unit time.  Their analysis rests on the following identity
+\citep[Proposition~3.1]{ekstromKaratzasVaicenavicius2022}.
 
-\begin{proposition}[EKV variance decay identity]
-For any admissible stopping time \(\tau\),
+\begin{proposition}[Variance decay]
+For any stopping time $\tau$ of $\mathcal F^Y$,
 \begin{equation}
-    \mathbb E[\Psi(\tau,\widehat X_\tau)]
+    \mathbb E\bigl[\Psi(\tau,\widehat X_\tau)\bigr]
     =
     \operatorname{Var}(X)
     -
@@ -136,568 +206,500 @@ For any admissible stopping time \(\tau\),
 \end{equation}
 \end{proposition}
 
-Consequently, minimizing \eqref{eq:ekv_objective} is equivalent, up to the constant
-\(\operatorname{Var}(X)\), to minimizing
+\noindent
+Since $\mathbb E[(X-\widehat X_\tau)^2]=\mathbb E[\Psi(\tau,\widehat X_\tau)]$, the EKV
+objective is equivalent, up to the constant $\operatorname{Var}(X)$, to
+$\inf_\tau\mathbb E\int_0^\tau(c-\Psi^2(s,\widehat X_s))\,ds$.  The interpretation is
+direct: one more instant of observation costs $c$ and reduces posterior variance at
+rate $\Psi^2$, so it is optimal to continue exactly while the learning rate justifies
+the cost.
+
+Two priors admit closed forms, and we use both as exact benchmarks for our numerical
+solver.  Under a Gaussian prior $X\sim N(m_0,q_0)$,
 \begin{equation}
-    \inf_{\tau}
-    \mathbb E\left[
-    \int_0^\tau
-    \left(c-\Psi^2(s,\widehat X_s)\right)ds
-    \right].
-    \label{eq:running_cost_form}
-\end{equation}
-The interpretation is direct: observing for one more instant costs \(c\), while the
-instantaneous rate of posterior-variance reduction is \(\Psi^2\).  The continuation
-region is therefore the set where the option value of further learning exceeds the
-observation cost.
-
-\section{Two Checkable Priors}
-
-\subsection{Gaussian prior}
-
-If \(X\sim N(m,\sigma^2)\), then
-\begin{equation}
-    \widehat X_t
-    =
-    \frac{m+\sigma^2Y_t}{1+\sigma^2t},
+    \widehat X_t=\frac{m_0+q_0Y_t}{1+q_0t},
     \qquad
-    \Psi(t,x)
-    =
-    \frac{\sigma^2}{1+\sigma^2t}.
+    \Psi(t,x)=\frac{q_0}{1+q_0t},
+    \qquad
+    \tau^\star=\Bigl(\tfrac{1}{\sqrt c}-\tfrac{1}{q_0}\Bigr)^{\!+},
+    \label{eq:gaussian_benchmark}
 \end{equation}
-The posterior variance is deterministic.  The optimal stopping time is
+so the posterior variance is deterministic and an optimal stopping time is the
+constant $\tau^\star$.  Under a two-point prior on $\{-\beta,\beta\}$, the posterior
+variance function is $\Psi(x)=\beta^2-x^2$, and immediate stopping is optimal when
+$\beta^4\le c$.  Otherwise an optimal rule is the first exit
+$\tau_a^\star=\inf\{t\ge0:|\widehat X_t|\ge a\}$, where $a$ is the unique root in
+$(\gamma,\beta)$ of $\int_0^a\bigl[c-(\beta^2-\xi^2)^2\bigr](\beta^2-\xi^2)^{-2}d\xi=0$
+and $\gamma=\sqrt{\beta^2-\sqrt c}$.  The two-point
+case already has the shape of an alpha admission rule: continue while the posterior
+mean sits in a band around zero and stop once it exits, the continuous-time analogue
+of Wald's two-threshold test.
+
+\section{A Tradeability Stopping Problem}
+\label{sec:tradeability}
+
+\subsection{The activation payoff}
+
+EKV's terminal reward is statistical accuracy; an alpha researcher cares about money.
+We therefore replace the reward with an economic payoff while keeping the filtering
+state, after which the EKV optimality results no longer apply and the finance problem
+must be solved on its own.
+
+Suppose that at the moment of stopping the posterior belief about the signal strength
+has mean $m$ and variance $q$.  If the signal is activated with signed exposure $z$, we
+evaluate it by the posterior predictive mean-variance objective
 \begin{equation}
-    \tau^\star
-    =
-    \left(\frac{1}{\sqrt c}-\frac{1}{\sigma^2}\right)^+.
-    \label{eq:gaussian_tau}
-\end{equation}
-This case will serve as our first validation benchmark: the code must reproduce the
-precision update and the variance decay identity exactly.
-
-\subsection{Symmetric Bernoulli prior}
-
-If \(X\in\{-\beta,\beta\}\), then the posterior mean lies in \((-\beta,\beta)\) and
-\begin{equation}
-    \Psi(x)=\beta^2-x^2.
-\end{equation}
-When \(\beta^4\le c\), immediate stopping is optimal.  Otherwise the optimal stopping
-time is the first exit from a symmetric interval:
-\begin{equation}
-    \tau_a^\star
-    =
-    \inf\{t\ge 0:|\widehat X_t|\ge a\},
-\end{equation}
-where \(a\in(\gamma,\beta)\), \(\gamma=\sqrt{\beta^2-\sqrt c}\), solves
-\begin{equation}
-    \int_0^a
-    \frac{c-(\beta^2-\xi^2)^2}{(\beta^2-\xi^2)^2}\,d\xi
-    =
-    0.
-    \label{eq:bernoulli_boundary}
-\end{equation}
-This case is the first mathematical template for alpha activation or rejection: continue
-while the evidence is ambiguous, and stop once posterior confidence is sufficiently far
-from zero.
-
-\section{Project Translation}
-
-The base paper estimates an unknown drift.  Our project will preserve the posterior
-filtering state and stopping-boundary template, but change the terminal payoff from
-estimation accuracy to economic tradeability.  This distinction is important: the EKV
-variance-decay identity explains the statistical estimation problem, but it does not
-prove the optimality of the finance boundary below.  Once the reward functional changes,
-we must solve and validate a new obstacle problem using the EKV posterior dynamics as the
-state process.  The intended mapping is:
-\[
-\begin{array}{lll}
-\text{EKV variable} & & \text{alpha tradeability variable}\\
-\midrule
-X && \text{unknown alpha strength}\\
-Y_t && \text{cumulative normalized signal evidence}\\
-\widehat X_t && \text{posterior mean alpha}\\
-\Psi(t,\widehat X_t) && \text{posterior uncertainty and learning speed}\\
-c && \text{observation and opportunity cost}\\
-\tau && \text{activation or rejection time}.
-\end{array}
-\]
-The next mathematical step is to define a finance terminal payoff
-\(\Phi(m,q;\mathrm{cost})\) that rewards activation only when posterior alpha value
-survives uncertainty and transaction costs.  Once that payoff is fixed, the project
-becomes a numerically solvable optimal stopping problem whose boundary can be compared
-against fixed \(t\)-statistic, rolling Sharpe, and IC-threshold rules.
-
-\section{A First Tradeability Payoff}
-
-We now define the first finance version of the terminal stopping payoff.  Suppose that,
-at a stopping time, the posterior belief about the signal strength is summarized by mean
-\(m\) and variance \(q\).  If the signal is activated with signed exposure \(z\), we use the
-posterior predictive mean-variance objective
-\begin{equation}
-    m z
-    -
-    \frac{\lambda}{2}(\sigma_r^2+q)z^2
-    -
-    \kappa.
+    m z-\frac{\lambda}{2}\bigl(\sigma_r^2+q\bigr)z^2-\kappa,
     \label{eq:activation_objective}
 \end{equation}
-Here \(\lambda>0\) is risk aversion, \(\sigma_r^2\) is the residual return variance of the
-traded signal, \(q\) is posterior parameter uncertainty, and \(\kappa\ge 0\) is an
-implementation hurdle representing spread, impact, research delay, or capital allocation
-cost.  The term \(\sigma_r^2+q\) is a predictive-risk approximation: position sizing is
-penalized both for realized return noise and for uncertainty about the latent alpha
-itself, in the same annualized evidence units used for \(m\).  Optimizing
-\eqref{eq:activation_objective} over \(z\in\mathbb R\) gives
-\begin{equation}
-    \sup_z
-    \left\{
-    mz-\frac{\lambda}{2}(\sigma_r^2+q)z^2-\kappa
-    \right\}
-    =
-    \frac{m^2}{2\lambda(\sigma_r^2+q)}-\kappa.
-\end{equation}
-Since the decision maker can reject the signal instead of trading it, the terminal payoff is
+where $\lambda>0$ is risk aversion, $\sigma_r^2$ is the residual return variance of the
+traded signal, and $\kappa\ge0$ is an implementation hurdle covering spread, impact,
+and the opportunity cost of research capacity.  The term $\sigma_r^2+q$ is predictive
+risk: the position is penalized both for return noise and for uncertainty about the
+latent alpha itself, expressed in the same annualized units as $m$.  Optimizing over
+$z$ and retaining the option to reject gives the terminal payoff
 \begin{equation}
     \Phi(m,q)
     =
-    \left(
-    \frac{m^2}{2\lambda(\sigma_r^2+q)}
-    -
-    \kappa
-    \right)^+.
+    \left(\frac{m^2}{2\lambda(\sigma_r^2+q)}-\kappa\right)^{\!+},
     \label{eq:tradeability_payoff}
 \end{equation}
-The immediate activation threshold is therefore
+attained by $z^\star=m/\bigl(\lambda(\sigma_r^2+q)\bigr)$ when the net value is
+positive.  Immediate activation therefore requires
 \begin{equation}
-    |m|
-    >
-    \sqrt{2\lambda(\sigma_r^2+q)\kappa}.
+    |m|>\sqrt{2\lambda(\sigma_r^2+q)\kappa}.
     \label{eq:activation_threshold}
 \end{equation}
-This is only a terminal threshold.  Before the final validation date, the signal also has
-option value: a currently ambiguous signal may become tradeable after more evidence
-arrives.  A richer implementation model could replace the fixed hurdle \(\kappa\) with
-terms such as \(\kappa_0+\kappa_1|z|+\kappa_2z^2\), which would penalize turnover,
-liquidity, and capacity directly; we leave that as a natural extension.
+This is only a terminal threshold: before the validation deadline, an ambiguous signal
+also carries option value, because more evidence may push the posterior mean into the
+tradeable region.
 
-\section{Finite-Horizon Stopping Problem}
+\subsection{The finite-horizon obstacle problem}
+\label{sec:vi}
 
-For the Gaussian prior, the posterior variance is deterministic:
-\[
-    q(t)=\frac{q_0}{1+q_0t},
-\]
-and the posterior mean follows
-\begin{equation}
-    dm_t = q(t)\,d\widehat W_t.
-\end{equation}
-Given a finite validation horizon \(T\), the tradeability value is
+Under the Gaussian prior the posterior variance is the deterministic function
+$q(t)=q_0/(1+q_0t)$ and the posterior mean follows $dm_t=q(t)\,d\widetilde W_t$.  Given
+a validation horizon $T$, an observation cost $c$, and a decay rate $\rho\ge0$, the
+tradeability value is
 \begin{equation}
     V(t,m)
     =
     \sup_{\tau\in[t,T]}
     \mathbb E_{t,m}
     \left[
-        e^{-\rho \tau}\Phi(m_\tau,q(\tau))
-        -
-        \int_t^\tau c\,ds
+        e^{-\rho\tau}\,\Phi\bigl(m_\tau,q(\tau)\bigr)-\int_t^\tau c\,ds
     \right].
     \label{eq:tradeability_value}
 \end{equation}
-The parameter \(\rho\ge 0\) captures alpha decay or opportunity loss during validation.
-The value \(V(t,m)\) is measured in calendar-time units from the beginning of validation,
-so the terminal reward is discounted by \(e^{-\rho\tau}\).  With this convention decay is
-part of the time-dependent obstacle; an equivalent formulation with value measured from
-the current time \(t\) would use \(e^{-\rho(\tau-t)}\) and place the discount term inside
-the continuation PDE.
-This term is economically important.  Without decay or discounting, the activation
-payoff is convex in the posterior mean \(m\), and the model can prefer to keep observing
-even when \(|m|\) is already very large.  That is the wrong lifecycle decision for a
-decaying alpha: a sufficiently strong signal should be activated before its deployable
-value evaporates.
+Value is measured in calendar time from the start of validation, so the discount
+$e^{-\rho\tau}$ sits inside the obstacle; the equivalent current-time formulation uses
+$e^{-\rho(\tau-t)}$ and a $-\rho V$ term in the continuation equation.  The decay term
+is economically essential.  Because the payoff \eqref{eq:tradeability_payoff} is convex
+in $m$, an undiscounted model can prefer to keep observing even when $|m|$ is already
+large.  With $\rho>0$, a sufficiently strong signal is activated before its deployable
+value evaporates; this is the right lifecycle decision for a decaying alpha.
 
-The continuation region satisfies the variational inequality
+Writing the obstacle as $g(t,m)=e^{-\rho t}\Phi(m,q(t))$ and the generator of the
+posterior mean as $\mathcal L_tV=\tfrac12q(t)^2\partial_{mm}V$ (there is no first-order
+term because $m_t$ is a martingale), the value solves the variational inequality
 \begin{equation}
-    \max\left\{
-        e^{-\rho t}\Phi(m,q(t))-V(t,m),
-        \partial_t V(t,m)
-        +
-        \frac{1}{2}q(t)^2\partial_{mm}V(t,m)
-        -
-        c
-    \right\}
-    =
-    0,
+    \max\Bigl\{
+        \partial_tV+\mathcal L_tV-c,\;
+        g-V
+    \Bigr\}=0,
+    \qquad
+    V(T,m)=g(T,m),
     \label{eq:tradeability_vi}
 \end{equation}
-with terminal condition
-\begin{equation}
-    V(T,m)=e^{-\rho T}\Phi(m,q(T)).
-\end{equation}
+with continuation region $\mathcal C=\{V>g\}$ and stopping region $\mathcal S=\{V=g\}$,
+separated by a free boundary.  Because the obstacle is time dependent and the value can
+kink at the boundary, we treat the variational inequality itself as the primary
+object (the viscosity-solution view) rather than imposing smooth pasting by hand.
 
-This is the first paper-level object we can compute.  It has the right economic
-interpretation:
-\begin{itemize}
-    \item high \(|m|\) favors stopping and activating the signal;
-    \item low posterior variance \(q\) lowers the option value of more observation;
-    \item high observation or implementation cost shrinks the continuation region;
-    \item near \(m=0\), the payoff can be zero while continuation value remains positive,
-    because future evidence may still move the posterior mean into the tradeable region.
-\end{itemize}
-
-The code solves \eqref{eq:tradeability_vi} by backward implicit Euler on a uniform grid in
-\((t,m)\), with the mean-domain boundaries pinned to the immediate stopping payoff.  This
-is the numerical analogue of the lecture's dynamic-programming and viscosity-solution
-view of optimal stopping: the value may kink at the free boundary, so the obstacle
-problem is the primary object rather than a globally smooth classical PDE.  The
-implementation is validated against exact activation thresholds, symmetry in \(m\), the
-zero-payoff no-continuation case, monotonic decline of value as observation cost rises, and
-early exercise of strong alpha when \(\rho>0\).
+We solve \eqref{eq:tradeability_vi} by backward implicit Euler on a uniform $(t,m)$
+grid, taking the pointwise maximum with the obstacle after each implicit step.  The
+spatial boundaries are pinned to the immediate stopping payoff, on a domain wide
+enough that stopping is optimal at the edges.  The discretization is monotone, stable,
+and consistent, so it falls within the convergence framework of
+\citet{barlesSouganidis1991} for viscosity solutions.  The solver is validated against
+the exact terminal threshold \eqref{eq:activation_threshold}, symmetry in $m$, the
+zero-payoff limit, monotonicity in the observation cost, and early exercise when
+$\rho>0$.
+Figure~\ref{fig:gaussian_tradeability_boundary} shows the resulting policy: a
+continuation band around $m=0$, widest early, flanked by activation at large $|m|$ and
+rejection where neither trading nor further observation pays.
 
 \begin{figure}[t]
     \centering
-    \includegraphics[width=0.92\linewidth]{../figures/gaussian_tradeability_boundary.pdf}
-    \caption{First finite-difference tradeability boundary for the Gaussian-belief model.
-    Red states stop and activate the alpha, gray states stop and reject it, and blue states
-    continue observing.  The plot zooms into the central posterior-mean range of a wider
-    computational grid.  The dashed curves show the static activation threshold from
-    \eqref{eq:activation_threshold}; the blue continuation region is largest early in the
-    validation period and shrinks as the horizon approaches.}
+    \includegraphics[width=0.62\linewidth]{gaussian_tradeability_boundary.pdf}
+    \caption{Tradeability policy for the Gaussian-belief model, from the variational
+    inequality \eqref{eq:tradeability_vi} with $q_0=0.10$, $\lambda=1$,
+    $\sigma_r^2=0.05$, $\kappa=0.025$, $c=0.005$, $\rho=1$, and $T=2$.  Red states
+    activate, gray states reject, blue states continue; dashed curves show the static
+    threshold \eqref{eq:activation_threshold}.  The plot zooms into the central
+    posterior-mean range of a wider computational grid; the continuation region
+    shrinks as the horizon approaches.}
     \label{fig:gaussian_tradeability_boundary}
 \end{figure}
 
-\section{Simulation Validation}
+\section{Simulation Evidence and the Null-Signal Problem}
+\label{sec:simulation}
 
-Before using real data, we validate the stopping rule inside the model it is designed to
-solve.  We simulate evidence paths
-\begin{equation}
-    dY_t = \theta\,dt+dW_t
-\end{equation}
-for fixed true alpha strengths \(\theta\).  The posterior mean and variance are updated
-exactly using the Gaussian formulas above:
-\begin{equation}
-    m_t = \frac{q_0Y_t}{1+q_0t},
-    \qquad
-    q_t = \frac{q_0}{1+q_0t}.
-\end{equation}
-If a policy activates at time \(\tau\), it chooses the posterior-optimal exposure
-\begin{equation}
-    z_\tau^\star
-    =
-    \frac{m_\tau}{\lambda(\sigma_r^2+q_\tau)}.
-\end{equation}
-We then evaluate the realized economic value under the true alpha:
+Before turning to real data, we validate the stopping rule inside the model it is
+built to solve.  We simulate 10{,}000 evidence paths $dY_t=\theta\,dt+dW_t$ at each of
+seven true strengths $\theta$ equally spaced between $-0.3$ and $0.3$, each playing
+the role of a realized $X$, and we update the posterior exactly with the Gaussian
+formulas \eqref{eq:gaussian_benchmark}.
+The experiment uses prior $X\sim N(0,0.20)$, risk aversion $\lambda=1$, residual
+variance $\sigma_r^2=0.05$, hurdle $\kappa=0.005$, observation cost $c=0.005$, decay
+$\rho=1$, and horizon $T=2$ years.  A policy that activates at
+$\tau$ takes the posterior-optimal exposure
+$z_\tau^\star=m_\tau/\bigl(\lambda(\sigma_r^2+q_\tau)\bigr)$ and is scored by its
+realized economic value under the true strength,
 \begin{equation}
     e^{-\rho\tau}
     \left(
-        \theta z_\tau^\star
-        -
-        \frac{\lambda}{2}\sigma_r^2(z_\tau^\star)^2
-        -
-        \kappa
+        \theta z_\tau^\star-\frac{\lambda}{2}\sigma_r^2(z_\tau^\star)^2-\kappa
     \right)
-    -
-    c\tau,
+    -c\tau,
     \label{eq:realized_value}
 \end{equation}
-with value \(-c\tau\) if the policy rejects instead of activating.
+and by $-c\tau$ if it rejects.  Figure~\ref{fig:simulation_policy_comparison} compares
+the dynamic boundary with two natural baselines: immediate activation once the static
+threshold \eqref{eq:activation_threshold} is crossed, and a fixed posterior
+$z$-statistic rule.
 
-Figure~\ref{fig:simulation_policy_comparison} compares the dynamic boundary to two
-simple baselines: immediate activation once the static payoff threshold
-\eqref{eq:activation_threshold} is crossed, and a fixed posterior \(z\)-statistic rule.
-The experiment is not meant to be the final empirical result.  It is a calibration check.
-It shows that the dynamic rule captures option value for genuinely strong alphas, but it
-also exposes a weakness of the Gaussian prior: when the true alpha is zero, random
-evidence often eventually looks tradeable.  This motivates the next model extension, a
-dead/alive or spike-and-slab prior that can explicitly represent the possibility that a
-candidate alpha is worthless.
+The comparison delivers one positive and one negative result, and both matter.  For
+genuinely strong signals ($|\theta|=0.3$) the dynamic boundary earns a mean realized
+value of about $0.019$, far above both baselines: it waits exactly long enough to size
+the position with confidence.  But at $\theta=0$ the Gaussian rule activates 90.1\% of
+paths, with mean value $-0.0157$.  The failure is structural: a Gaussian prior assigns
+zero probability to the event $X=0$, so no amount of flat evidence can convince the
+model that a signal is simply dead; given enough time, noise eventually looks
+tradeable.  The fix is a prior with an explicit dead state.
 
 \begin{figure}[t]
     \centering
-    \includegraphics[width=0.86\linewidth]{../figures/simulation_policy_comparison.pdf}
-    \caption{Pathwise validation under the Gaussian evidence model.  The dynamic boundary
-    substantially improves realized value for large \(|\theta|\), but it is not uniformly
-    dominant: near \(\theta=0\), the Gaussian prior over-activates noisy dead signals.  This
-    is a useful stress test, pointing to an explicit dead/alive prior as the next
-    mathematical extension.}
+    \includegraphics[width=0.6\linewidth]{simulation_policy_comparison.pdf}
+    \caption{Pathwise validation under the Gaussian evidence model.  The dynamic
+    boundary improves realized value for large $|\theta|$ but over-activates null
+    signals at $\theta=0$, because the Gaussian prior cannot represent a dead alpha;
+    this motivates Section~\ref{sec:deadalive}.}
     \label{fig:simulation_policy_comparison}
 \end{figure}
 
-\section{Dead/Alive Prior}
+\section{A Dead/Alive Prior with a False-Discovery Penalty}
+\label{sec:deadalive}
 
-The Gaussian prior is a natural first model because it gives a one-dimensional posterior
-mean and a deterministic posterior variance.  But it does not assign positive probability
-to the event that the signal has exactly zero alpha.  For signal validation, this is a
-serious omission: many candidate alphas are not merely weak, but dead.
+\subsection{Three-state posterior}
 
-The next model is therefore the finite prior
+We replace the Gaussian prior on the strength $X$ with the finite prior
 \begin{equation}
-    \theta\in\{-a,0,+a\},
+    X\in\{-a,0,+a\},
     \qquad
-    \mathbb P(\theta=-a)=p_-,
-    \quad
-    \mathbb P(\theta=0)=p_0,
-    \quad
-    \mathbb P(\theta=+a)=p_+.
+    \mathbb P(X=-a)=p_-,\quad
+    \mathbb P(X=0)=p_0,\quad
+    \mathbb P(X=+a)=p_+,
     \label{eq:three_state_prior}
 \end{equation}
-The three states have direct economic meanings: live short, dead, and live long.  Given
-evidence \(Y_t=y\), Bayes' rule gives
+whose states $\theta_i\in\{-a,0,+a\}$ have direct economic meanings: live short, dead,
+live long.  Given evidence $Y_t=y$, the posterior weights are
 \begin{equation}
     \pi_i(t,y)
     =
-    \frac{
-        p_i\exp\{\theta_i y-\theta_i^2t/2\}
-    }{
-        \sum_j p_j\exp\{\theta_j y-\theta_j^2t/2\}
-    },
-    \qquad
-    \theta_i\in\{-a,0,+a\}.
+    \frac{p_i\exp\{\theta_iy-\theta_i^2t/2\}}
+    {\sum_jp_j\exp\{\theta_jy-\theta_j^2t/2\}},
     \label{eq:three_state_posterior}
 \end{equation}
-The posterior mean and variance are
+with posterior mean $m(t,y)=\sum_i\pi_i\theta_i$ and variance
+$q(t,y)=\sum_i\pi_i\theta_i^2-m^2$.  As in the EKV setup, the posterior mean is the
+innovation drift,
 \begin{equation}
-    m(t,y)=\sum_i\pi_i(t,y)\theta_i,
-    \qquad
-    q(t,y)=\sum_i\pi_i(t,y)\theta_i^2-m(t,y)^2.
-    \label{eq:three_state_moments}
-\end{equation}
-As in the EKV filtering setup, the posterior mean is the innovation drift:
-\begin{equation}
-    dY_t=m(t,Y_t)\,dt+d\widehat W_t.
+    dY_t=m(t,Y_t)\,dt+d\widetilde W_t,
     \label{eq:three_state_innovation}
 \end{equation}
-The tradeability payoff can now be evaluated using \(m(t,y)\) and \(q(t,y)\), but the
-state has an additional interpretation through the posterior dead probability
-\(\pi_0(t,y)\).  If evidence remains near zero while time passes, the likelihood of the
-dead state rises relative to the live states, because live alphas would probably have
-generated directional evidence.
+which is the observation-filtration representation of the classical multi-hypothesis
+sequential test.  The state now carries one extra economically meaningful coordinate,
+the posterior dead probability $\pi_0(t,y)$.  If evidence hovers near zero while time
+passes, $\pi_0$ rises: a live alpha would probably have produced directional evidence
+by then.  The implementation is checked against exact identities of the exponential
+family: the weights sum to one; under a symmetric prior, $\pi_+(t,y)=\pi_-(t,-y)$ and
+$m(t,y)=-m(t,-y)$; the dead probability $\pi_0(t,0)$ increases in $t$;
+$\partial_ym(t,y)=q(t,y)$; and conditional innovation increments are centered.
 
-The first stress test showed that merely adding a dead state is not enough.  If the
-terminal payoff remains only the trading payoff in \eqref{eq:tradeability_payoff}, the
-model still activates too many noisy null paths.  This is not a numerical failure; it is
-an objective-function issue.  A research process cares not only about expected trading
-profit conditional on current beliefs, but also about the cost of admitting false
-discoveries into production.  We model this with a dead-activation penalty \(\eta\ge0\),
-paid if the signal is activated and \(\theta=0\).  Ex ante, the posterior expected penalty
-is \(\eta\pi_0(t,y)\), so the terminal payoff becomes
+\subsection{Penalizing dead activations}
+
+A dead state in the prior is necessary but not sufficient.  If the terminal reward
+remains the pure trading payoff \eqref{eq:tradeability_payoff}, the model still admits
+too many noisy null paths: conditional on a lucky posterior mean, trading looks
+profitable even when the dead state is quite likely.  The issue is the objective, not
+the numerics.  A research process bears costs from admitting false discoveries into
+production (capacity, monitoring, operational risk) that the trading payoff does not
+see.  We model them with a dead-activation penalty $\eta\ge0$, paid when the signal is
+activated and $X=0$; its posterior expectation at activation is $\eta\,\pi_0(t,y)$, so
+the obstacle becomes
 \begin{equation}
     \Phi_\eta(t,y)
     =
     e^{-\rho t}
     \left(
-    \frac{m(t,y)^2}{2\lambda(\sigma_r^2+q(t,y))}
-    -
-    \kappa
-    -
-    \eta\pi_0(t,y)
-    \right)^+.
+        \frac{m(t,y)^2}{2\lambda(\sigma_r^2+q(t,y))}-\kappa-\eta\,\pi_0(t,y)
+    \right)^{\!+}.
     \label{eq:dead_alive_payoff}
 \end{equation}
-
-This model is not just a larger portfolio problem.  A multiperiod portfolio model usually
-takes the alpha signal as an input and chooses positions.  Here the decision comes one
-step earlier: should this noisy signal be admitted into the trading system, rejected, or
-observed longer?  That distinction is what makes the dead state valuable.
-
-The implemented posterior object is validated by the following identities:
-\begin{itemize}
-    \item posterior probabilities sum to one and remain positive;
-    \item under a symmetric prior, \(\pi_+(t,y)=\pi_-(t,-y)\) and
-    \(m(t,y)=-m(t,-y)\);
-    \item when \(y=0\), \(\pi_0(t,0)\) increases with \(t\);
-    \item large positive or negative evidence identifies the corresponding live state;
-    \item the EKV identity \(\partial_y m(t,y)=q(t,y)\) holds numerically;
-    \item conditional innovation increments are centered under the posterior.
-\end{itemize}
-The next computational step is to solve the finite-horizon obstacle problem in
-\((t,y)\)-space,
+The value function in $(t,y)$ coordinates solves
 \begin{equation}
-    \max\left\{
-        \Phi_\eta(t,y)-V(t,y),
-        \partial_tV+m(t,y)\partial_yV+\frac{1}{2}\partial_{yy}V-c
-    \right\}
-    =
-    0.
+    \max\Bigl\{
+        \Phi_\eta(t,y)-V,\;
+        \partial_tV+m(t,y)\,\partial_yV+\tfrac12\partial_{yy}V-c
+    \Bigr\}=0,
+    \qquad
+    V(T,y)=\Phi_\eta(T,y).
     \label{eq:three_state_vi}
 \end{equation}
-Here the continuation generator is
-\(\mathcal L_t f(y)=m(t,y)f_y(y)+\frac12 f_{yy}(y)\), exactly the infinitesimal
-generator associated with \eqref{eq:three_state_innovation}.  The implementation uses a
-monotone upwind discretization of this generator before applying the obstacle, which is
-the standard finite-difference safeguard for a viscosity-solution free-boundary problem.
-The main testable prediction is that the dead/alive policy should reduce false activation
-when \(\theta=0\), while preserving activation power when \(\theta=\pm a\).
+The continuation operator is exactly the generator of
+\eqref{eq:three_state_innovation}.  The solver discretizes it with monotone upwind
+weights before applying the obstacle, the standard safeguard for viscosity solutions
+of free-boundary problems.  The decision here is one step upstream of portfolio
+choice: a portfolio model takes the signal as given and sizes positions, whereas this
+model decides whether the signal enters the trading system at all.
 
-\section{Dead/Alive Simulation Stress Test}
+\subsection{Controlled stress test}
+\label{sec:deadalive_test}
 
-The calibrated dead/alive experiment uses \(p_0=0.70\), symmetric live probabilities,
-matched prior second moment \(0.045\), and therefore
-\[
-    a=\sqrt{\frac{0.045}{1-p_0}}\approx0.387.
-\]
-The false-discovery cost is set to \(\eta=0.002\), with the same trading payoff,
-observation cost, activation decay, and validation horizon used in the Gaussian
-comparison.  The Gaussian benchmark is given the same initial prior variance, so the
-difference is not simply more or less initial uncertainty; it is the explicit posterior
-dead state and its admission penalty.
+We rerun the simulation experiment with a three-state prior matched to the Gaussian
+benchmark: dead probability $p_0=0.70$, symmetric live states, and live magnitude
+$a=\sqrt{0.045/(1-p_0)}\approx0.387$, so that the prior second moment $0.045$ equals
+the Gaussian prior variance.  The penalty is $\eta=0.002$.  The trading payoff, decay, and
+horizon match Section~\ref{sec:simulation}; the observation cost is $c=0.002$, and
+each strength uses 20{,}000 paths.  Both boundaries in the comparison share these
+parameters, so the only difference is the explicit dead state and its admission
+penalty.  The
+finite-difference diagnostics are exact to numerical tolerance: zero obstacle
+violation, zero terminal-value error, and symmetry error $4.2\times10^{-16}$.  The
+posterior dead probability at $y=0$ rises from $0.70$ to $0.731$ over the horizon, as
+it should when no directional evidence arrives.
 
-The finite-difference diagnostics are exact to numerical tolerance: the maximum obstacle
-violation is \(0\), the terminal value error is \(0\), and the symmetry error is
-\(4.2\times10^{-16}\).  The posterior dead probability at \(y=0\) increases from \(0.70\)
-to \(0.731\) over the horizon, as expected when no directional evidence arrives.
+Figure~\ref{fig:dead_alive_policy_comparison} reports the policy comparison.  At
+$\theta=0$ the dead/alive boundary lowers false activation from 47.1\% (matched
+Gaussian boundary) to 39.8\% and improves null realized value from $-0.00560$ to
+$-0.00513$.  The gain is not free: realized value on live alphas is slightly below the
+Gaussian benchmark.  The result is a disciplined false-discovery/power tradeoff, not a
+dominance claim; such a tradeoff is precisely what an admission rule should offer,
+with the penalty $\eta$ as the dial.
 
 \begin{figure}[t]
     \centering
-    \includegraphics[width=0.94\linewidth]{../figures/dead_alive_policy_comparison.pdf}
-    \caption{Controlled stress test for the dead/alive admission rule.  The dead/alive
-    boundary lowers false activation at \(\theta=0\) from \(47.1\%\) under the matched
-    Gaussian boundary to \(39.8\%\), improving null realized value from \(-0.00560\) to
-    \(-0.00513\).  The gain is not free: live-alpha value is slightly lower than the
-    Gaussian benchmark.  The result is therefore a disciplined false-discovery/power
-    tradeoff, not a dominance claim.}
+    \includegraphics[width=0.64\linewidth]{dead_alive_policy_comparison.pdf}
+    \caption{Stress test of the dead/alive admission rule against a
+    prior-variance-matched Gaussian boundary.  The dead/alive boundary lowers false
+    activation at $\theta=0$ from 47.1\% to 39.8\% and improves null realized value
+    from $-0.00560$ to $-0.00513$, at a small cost in live-alpha value.}
     \label{fig:dead_alive_policy_comparison}
 \end{figure}
 
-\section{First Real-Data Experiment}
+\section{Real-Data Evidence}
+\label{sec:empirics}
 
-As a first real-data test, we use the Chen--Zimmermann Open Source Cross-Sectional Asset
-Pricing data, specifically the Federal Reserve file of monthly long-short returns for 205
-predictors \cite{chenZimmermann2022}.\footnote{Federal Reserve data page:
-\url{https://www.federalreserve.gov/econres/feds/open-source-cross-sectional-asset-pricing.htm}}
-This is not yet the final WRDS stock-level experiment, but it is a useful intermediate
-test because the inputs are real anomaly portfolio returns rather than simulated evidence.
+\subsection{Anomaly portfolio data and protocol}
+\label{sec:osap_protocol}
 
-For each signal, monthly returns are converted into Brownian evidence increments.  Let
-\(\widehat\sigma_m\) be the monthly volatility estimated from a 120-month calibration
-window.  With \(dt=1/12\),
-\[
-    \Delta Y_t
-    =
-    \frac{r_t}{\widehat\sigma_m}\sqrt{dt}.
-\]
-This formula multiplies by \(\sqrt{dt}\); it does not divide by it.  Under a null signal
-with monthly return variance \(\widehat\sigma_m^2\),
-\(\operatorname{Var}(\Delta Y_t)\approx dt\), matching the Brownian increment scale.
-The drift \(\theta\) is therefore interpretable as an annualized Sharpe-like evidence
-strength.
+Our main experiment uses the Chen--Zimmermann Open Source Asset Pricing dataset,
+specifically the Federal Reserve release of monthly long-short returns for 205
+published predictors \citep{chenZimmermann2022}.\footnote{Data page:
+\url{https://www.federalreserve.gov/econres/feds/open-source-cross-sectional-asset-pricing.htm}.}
 
-The empirical protocol uses a common modern start date, January 1970, followed by 120
-months of calibration, up to 240 months of sequential validation, and a 120-month
-post-decision holdout window.  The admission rule uses the same three-state prior as the
-simulation, but with a stricter false-discovery penalty \(\eta=0.04\).  The penalty is
-calibrated by a placebo stress test: sign-flipping each signal's validation returns keeps
-the realized volatility pattern but destroys stable directional drift.
+Monthly returns are converted into Brownian evidence increments.  Let
+$\widehat\sigma_m$ be the monthly volatility estimated on a 120-month calibration
+window.  With $dt=1/12$,
+\begin{equation}
+    \Delta Y_t=\frac{r_t}{\widehat\sigma_m}\sqrt{dt},
+    \label{eq:evidence_increment}
+\end{equation}
+so that under a null signal $\operatorname{Var}(\Delta Y_t)\approx dt$, matching the
+Brownian increment scale.  The implied drift is then an annualized Sharpe-like
+evidence strength.  The protocol uses a common start date of January 1970: 120 months
+of calibration, up to 240 months of sequential validation, and a 120-month
+post-decision holdout window.  Of the 205 predictors, 192 have enough post-1970
+history to qualify.  All OSAP experiments use risk aversion $\lambda=1$, residual
+variance $\sigma_r^2=0.05$, hurdle $\kappa=0.005$, observation cost $c=0.001$, decay
+$\rho=0.25$, and the three-state prior of Section~\ref{sec:deadalive_test}
+($p_0=0.70$, $a\approx0.387$).  The variational inequality is solved on a
+$241\times801$ grid covering the 20-year horizon and $|y|\le8$.
 
-Figure~\ref{fig:osap_penalty_sweep} shows the penalty sensitivity.  With no additional
-false-discovery cost, the rule activates \(91.1\%\) of real OSAP signals but also
-\(60.4\%\) of placebo signals.  As \(\eta\) increases, both rates decline, but the placebo
-rate falls faster.  The choice \(\eta=0.04\) is a conservative middle point: real
-activation remains high, while placebo activation falls below one third.  A larger
-penalty such as \(\eta=0.08\) lowers placebo activation further, but at the cost of
-rejecting many more real anomaly portfolios.
+The placebo design destroys drift while keeping each signal's volatility profile: for
+every signal we independently flip the sign of each monthly validation return with
+probability one half.  Per-month randomization is essential: a single global sign flip
+would leave absolute drift unchanged and a symmetric rule unaffected, whereas
+independent flips zero the expected drift while preserving the distribution of
+absolute returns.  The calibration below uses one fixed-seed draw per signal.  Across
+200 independent redraws, the placebo activation rate averages 30.0\% with a standard
+deviation of 3.0 points and a maximum of 37.0\%; the single-draw 27.1\% rate is
+therefore typical, and the gap to the 72.9\% real rate is far outside placebo sampling
+noise.
 
-For eight canonical signals (short-term reversal, momentum, book-to-market, operating
-profitability, asset growth, gross profitability, accruals, and bid-ask spread), the rule
-activates six and rejects two.  The activated group has an average 120-month holdout
-return of \(1.30\%\) per month.  Across all 192 OSAP predictors with enough post-1970
-history, the rule activates 140 signals, or \(72.9\%\).  On the sign-flipped placebo
-versions of the same signals, it activates only 52 signals, or \(27.1\%\).  This is the
-first real-data evidence that the admission rule is not merely responding to volatility:
-it is much more likely to stop and activate when the evidence has persistent direction.
+A stricter placebo draws one random sign per 12-month block, which preserves
+within-year dependence of signed returns while still destroying long-run drift.  This
+placebo activates 50.5\% of the time on average across 200 redraws and never exceeds
+60.4\%, below the real rate in every draw but well above the per-month placebo.  The
+comparison is informative about what the rule certifies.  At its typical four-year
+decision time, sign-randomized year-long drift segments are locally hard to
+distinguish from genuine drift; the admission decision therefore responds to
+directional persistence at horizons beyond a year, not only to full-sample drift.
 
-The main benchmark question is whether this is genuinely a sequential result or just a
-fixed-horizon posterior test in disguise.  To test this, we compare against fixed-horizon
-rules at 12, 24, 60, 120, and 240 validation months.  Each rule uses the same
-three-state posterior and is calibrated on the sign-flipped placebo signals to activate
-exactly 52 placebos, matching the sequential rule's \(27.1\%\) placebo activation rate.
-At a fixed horizon, posterior net payoff, posterior \(z\)-statistic, and posterior alive
-probability give the same ranking in this symmetric three-state model; this is a useful
-sanity check because all three are monotone transformations of absolute evidence
-strength at fixed \(t\).
+The false-discovery penalty is calibrated by sweeping $\eta$ over the real and
+placebo panels (Figure~\ref{fig:osap_penalty_sweep}).  With $\eta=0$ the rule activates
+91.1\% of real signals but also 60.4\% of placebos; raising $\eta$ lowers both rates,
+the placebo rate faster.  We adopt $\eta=0.04$ as a conservative middle point: real
+activation stays high while placebo activation falls below one third.
 
-Figure~\ref{fig:osap_static_benchmark} shows the result.  The sequential rule activates
-\(72.9\%\) of real signals with an average decision time of 47.9 months and an activated
-holdout return of \(0.747\%\) per month.  A fixed 60-month test is close in time but
-slightly weaker, activating \(70.8\%\) with \(0.705\%\) holdout return.  Fixed 120- and
-240-month tests activate more real signals, \(77.1\%\) and \(82.8\%\), but they require
-waiting 10 and 20 years and their activated holdout returns fall to \(0.689\%\) and
-\(0.537\%\).  Thus the sequential rule does not simply dominate every fixed test on raw
-activation count.  Its empirical advantage is an earlier admission frontier: it reaches
-nearly the long-horizon activation power while preserving stronger post-decision
-performance.  The activation-weighted holdout return is \(0.545\) for the sequential
-rule, compared with \(0.500\), \(0.531\), and \(0.444\) for the 60-, 120-, and 240-month
-fixed tests.
-
-We also check numerical stability of the variational inequality solver.  Table
-\ref{tab:grid_convergence} compares coarser grids with a fine \(481\times 1001\)
-reference.  The paper grid has initial value error below \(9\times 10^{-5}\) and less
-than \(1\%\) region disagreement on a common time-evidence evaluation grid.  Boundary
-locations move by a few hundredths of a Brownian evidence unit, so the results should be
-interpreted as economically stable rather than exact to the last grid point.
+Selecting $\eta$ out of sample gives the same answer.  In 25 replications that
+calibrate $\eta$ on one independent placebo draw (the smallest grid value with placebo
+activation below one third) and evaluate on a fresh draw, the selected penalty ranges
+over $0.03$--$0.05$ with median $0.04$.  The out-of-sample placebo rate averages
+31.0\% (95\% range 21.9\% to 39.0\%), and real activation stays between 69.3\% and
+77.1\%.  The cross-method comparisons that follow hold $\eta=0.04$ fixed across all
+rules.
 
 \begin{figure}[t]
     \centering
-    \includegraphics[width=0.82\linewidth]{../figures/osap_penalty_sweep.pdf}
-    \caption{Penalty sensitivity on all 192 eligible OSAP predictors.  Increasing the
-    false-discovery penalty lowers activation for both real signals and sign-flipped
-    placebos, but it lowers placebo activation more quickly.  The dashed line marks the
-    \(\eta=0.04\) calibration used in the real-data experiment.}
+    \includegraphics[width=0.46\linewidth]{osap_penalty_sweep.pdf}
+    \caption{Penalty sensitivity on all 192 eligible OSAP predictors.  Raising the
+    false-discovery penalty $\eta$ lowers activation for both real signals and
+    drift-destroyed placebos, but lowers placebo activation faster; the dashed line
+    marks the $\eta=0.04$ calibration.}
     \label{fig:osap_penalty_sweep}
 \end{figure}
 
+\subsection{Sequential versus fixed-horizon admission}
+\label{sec:osap_results}
+
+At $\eta=0.04$ the sequential rule activates 140 of 192 real predictors (72.9\%) and
+52 of 192 placebos (27.1\%).  Among eight canonical signals (short-term reversal,
+momentum, book-to-market, operating profitability, asset growth, gross profitability,
+accruals, and bid-ask spread), it activates six and rejects two; the activated group
+earns an average holdout return of 1.30\% per month over the next 120 months.  The
+45.8-point real--placebo gap shows that the rule responds to persistent direction, not
+to volatility.
+
+The sharper question is whether the result is genuinely sequential or a fixed-horizon
+posterior test in disguise.  We therefore compare against fixed-horizon rules at 12,
+24, 60, 120, and 240 validation months.  Each fixed rule uses the same three-state
+posterior and is calibrated on the same placebo panel to activate exactly 52 placebos,
+matching the sequential rule's placebo rate.  In this symmetric model, posterior net
+payoff, posterior $z$-statistic, and posterior alive probability are all monotone in
+absolute evidence strength at a fixed horizon, so the three scores give identical
+rankings.
+
+Figure~\ref{fig:osap_static_benchmark} reports the comparison.  The sequential rule
+activates 72.9\% of real signals with a mean decision time of 47.9 months and a mean
+holdout return of 0.747\% per month among activated signals.  The fixed 60-month test
+is closest in timing but weaker on both margins (70.8\%, 0.705\%).  Longer fixed tests
+buy more activation (77.1\% at 120 months, 82.8\% at 240 months) but require waiting
+10 or 20 years, and their activated holdout returns fall to 0.689\% and 0.537\%.  On
+the summary metric of activation-weighted holdout return (activation rate times mean
+activated holdout return), the sequential rule attains 0.545 against 0.500, 0.531, and
+0.444 for the 60-, 120-, and 240-month tests.  The sequential rule does not dominate
+on raw activation count; its advantage is an earlier admission frontier:
+near-long-horizon power at a quarter of the wait.
+
+Two caveats qualify this comparison.  First, decision times differ across rules, so
+holdout windows sample different calendar periods, and because anomaly returns decay
+after publication \citep{mcleanPontiff2016}, part of the 240-month test's weaker
+holdout performance may reflect calendar drift rather than the horizon itself.
+
+Second, the holdout differences carry wide confidence bands.  We bootstrap them in
+two ways with 2{,}000 replications each, holding the placebo calibration fixed.  The
+first design resamples circular 12-month calendar blocks jointly across signals,
+holding decisions fixed and preserving cross-signal correlation; the second resamples
+the 192 signals with replacement, decisions included.  The sequential gain in
+activation-weighted holdout return is $+0.045$ over the 60-month test (time-block
+95\% interval $-0.002$ to $0.099$; cluster $0.011$ to $0.081$), $+0.013$ over the
+120-month test (insignificant in both designs), and $+0.100$ over the 240-month test
+(time-block $-0.126$ to $0.313$; cluster $0.015$ to $0.188$).  The point estimates
+are positive throughout but not distinguishable from zero under the conservative
+calendar-time design.  We therefore read the post-decision comparison as suggestive;
+the unambiguous results are the real-versus-placebo separation and the earlier
+decision time.
+
 \begin{figure}[t]
     \centering
-    \includegraphics[width=\linewidth]{../figures/osap_static_benchmark_comparison.pdf}
-    \caption{Fixed-horizon benchmarks calibrated to the same sign-flip placebo activation
-    count as the sequential rule.  The left panel compares real activation rates.  The
-    right panel compares activation-weighted holdout return, defined as real activation
-    rate times average post-decision return among activated signals.}
+    \includegraphics[width=0.7\linewidth]{osap_static_benchmark_comparison.pdf}
+    \caption{Fixed-horizon benchmarks calibrated to the same placebo activation count
+    as the sequential rule (52 of 192).  Left: real activation rates; right:
+    activation-weighted holdout return.}
     \label{fig:osap_static_benchmark}
 \end{figure}
 
+\subsection{Numerical and specification robustness}
+\label{sec:robustness}
+
+Table~\ref{tab:grid_convergence} checks the stability of the variational-inequality
+solver for the three-state OSAP configuration against a fine
+$481\times1001$ reference grid.  The paper grid has an initial-value error below
+$9\times10^{-5}$ and under 1\% region disagreement on a common time--evidence
+evaluation grid; activation boundaries move by a few hundredths of a Brownian evidence
+unit across grids.  The results are economically stable rather than exact to the last
+grid point.
+
+The admission pattern is not specific to one parameter point.  Halving or doubling
+$\kappa$, $c$, and $\rho$ one at a time moves real activation between 47\% and 80\%
+and the mean decision time between 25 and 71 months, with the expected comparative
+statics: costlier observation and faster decay shorten validation and admit fewer
+signals.  The real--placebo activation gap stays between 26 and 52 points, positive in
+every configuration.
+
+The Brownian evidence approximation is imperfect: across eligible signals, the mean
+validation increment variance divided by $dt$ is 1.24, and the median absolute lag-one
+autocorrelation is 0.10.  These deviations are moderate but not negligible, and they
+motivate the natural extensions: signal-specific volatility updating and explicit
+costs at the stock level.
+
 \begin{table}[t]
 \centering
-\caption{Grid convergence for the three-state OSAP stopping problem.}
+\caption{Grid convergence for the three-state OSAP stopping problem.  $|\Delta V|$ is
+the initial-value difference from the fine grid; region disagreement is the share of
+grid points whose continue/stop classification differs.}
 \label{tab:grid_convergence}
 \begin{tabular}{lrrrr}
 \toprule
-Grid & \(n_t\times n_y\) & \(V(0,0)\) & \(|\Delta V|\) & Region disagreement \\
+Grid & $n_t\times n_y$ & $V(0,0)$ & $|\Delta V|$ & Region disagreement \\
 \midrule
-Coarse & \(121\times 401\) & 0.007155 & \(2.74\times 10^{-4}\) & 2.02\% \\
-Medium time & \(241\times 401\) & 0.006988 & \(1.08\times 10^{-4}\) & 0.89\% \\
-Medium space & \(241\times 601\) & 0.006976 & \(9.50\times 10^{-5}\) & 0.86\% \\
-Paper & \(241\times 801\) & 0.006969 & \(8.87\times 10^{-5}\) & 0.90\% \\
-Fine & \(481\times 1001\) & 0.006881 & 0 & 0 \\
+Coarse & $121\times401$ & 0.007155 & $2.74\times10^{-4}$ & 2.02\% \\
+Medium time & $241\times401$ & 0.006988 & $1.08\times10^{-4}$ & 0.89\% \\
+Medium space & $241\times601$ & 0.006976 & $9.50\times10^{-5}$ & 0.86\% \\
+Paper & $241\times801$ & 0.006969 & $8.87\times10^{-5}$ & 0.90\% \\
+Fine & $481\times1001$ & 0.006881 & 0 & 0 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The approximation is imperfect.  Across all eligible signals, the mean validation
-increment variance divided by \(dt\) is \(1.24\), and the median absolute lag-one
-autocorrelation is \(0.10\).  These diagnostics are close enough to make the Brownian
-evidence model a reasonable first approximation, but they also identify what the WRDS
-extension should improve: stock-level construction, explicit transaction costs, and
-signal-specific volatility updating.
+\subsection{Stock-level reconstruction and a transaction-cost stress test}
+\label{sec:wrds}
 
-We therefore build a first stock-level WRDS extension for momentum, book-to-market, and
-operating profitability using WRDS access to CRSP and Compustat data
-\cite{wrdsPlatform,wrdsPy}.  The data are real CRSP/Compustat monthly panels: 3.30
-million CRSP stock-months, 8.55 million stock-signal-months after merging signals, and
-2,040 monthly long-short portfolio returns.  Each month forms value-weighted
-top-minus-bottom decile portfolios using common stocks, next-month returns including
-delisting returns, and Compustat accounting data lagged by six months.  Table
-\ref{tab:wrds_stock_level} reports the sequential admission results on gross returns and
-on a conservative net-return stress test that subtracts turnover times a monthly
-high-low range cost proxy.
+Finally, we rebuild momentum, book-to-market, and operating profitability from CRSP
+and Compustat stock-level data on WRDS \citep{wrdsPlatform}, comprising 3.30 million
+CRSP stock-months, 8.55 million merged stock-signal-months, and 2{,}040 monthly
+long-short portfolio returns.
+Each month forms value-weighted top-minus-bottom decile portfolios from common stocks,
+uses next-month returns including delisting returns, and lags accounting data by six
+months.  We run the same admission protocol on gross returns and on a deliberately
+harsh net-return stress test.  The stress test subtracts turnover times a monthly
+high-low range cost proxy, which removes on average 5.15\%, 13.20\%, and 3.08\% per
+month from book-to-market, momentum, and operating profitability respectively
+(Table~\ref{tab:wrds_stock_level}).
 
 \begin{table}[t]
 \centering
-\caption{Stock-level WRDS admission experiment, 1970 start, three reconstructed signals.}
+\caption{Stock-level WRDS admission experiment (1970 start).  ``Standard direction''
+counts activations whose sign matches the documented anomaly; holdout is the mean
+monthly post-decision return among such activations.}
 \label{tab:wrds_stock_level}
 \small
 \begin{tabular}{lrrrrr}
 \toprule
-Return stream & \(N\) & Active & Std. active & Stop mo. & Std. holdout \\
+Return stream & Signals & Activated & \makecell[r]{Activated\\(std.\ dir.)} &
+\makecell[r]{Mean decision\\month} & \makecell[r]{Holdout\\(std.\ dir.)} \\
 \midrule
 Gross stock-level & 3 & 3 & 3 & 63.0 & 1.227\% \\
 Net range-cost stress & 3 & 3 & 0 & 49.0 & -- \\
@@ -705,53 +707,46 @@ Net range-cost stress & 3 & 3 & 0 & 49.0 & -- \\
 \end{tabular}
 \end{table}
 
-The gross stock-level result is encouraging: all three reconstructed signals become
-tradeable in the standard direction.  The net stress test is deliberately harsher.  Its
-cost proxy is based on monthly high-low range information, not direct daily bid-ask
-quotes, and it removes 5.15\%, 13.20\%, and 3.08\% per month on average from
-book-to-market, momentum, and operating profitability respectively.  Under this severe
-cost model, the posterior detects negative net drift and the symmetric stopping rule
-would activate by shorting the net return stream.  Because reversing a costly portfolio
-is not the same as taking the negative of a net return, we also report a
-standard-direction admission count.  It is zero: these signals are tradeable in gross
-returns, but not under the current conservative transaction-cost stress test.  The next
-data improvement is to replace the high-low range stress proxy with a cleaner daily
-bid-ask or effective-spread estimate, as in the transaction-cost anomaly literature
-\cite{chenVelikov2023}.
+On gross returns the result is clean: all three signals are admitted in the standard
+direction, with a mean standard-direction holdout return of 1.227\% per month.  Under
+the cost stress test, the posterior detects strongly negative net drift, and the
+symmetric rule ``activates'' by shorting the net return stream.  Reversing a costly
+portfolio is not the same as receiving the negative of its net return, so the
+economically meaningful count is standard-direction admissions; that count is zero.
+These signals are tradeable gross but do not survive this conservative cost model, the
+same qualitative message as \citet{novyMarxVelikov2016} and \citet{chenVelikov2023};
+because the range-based proxy overstates costs for liquid large-cap portfolios, we
+read this as a stress test rather than an execution-cost verdict.
 
-\begin{thebibliography}{9}
+\section{Conclusion}
+\label{sec:conclusion}
 
-\bibitem{chenVelikov2023}
-Chen, Andrew Y., and Mihail Velikov.
-\newblock ``Zeroing In on the Expected Returns of Anomalies.''
-\newblock \emph{Journal of Financial and Quantitative Analysis}, 58(3):968--1004, 2023.
-\newblock \url{https://doi.org/10.1017/S0022109022000874}.
+Alpha validation is usually framed as a fixed-horizon hypothesis test with an inflated
+threshold.  We frame it instead as a sequential real-options problem: the EKV filtering
+state summarizes what the evidence says, an economic payoff prices what activation is
+worth, a dead/alive prior with an admission penalty prices false discoveries, and the
+optimal policy is the free boundary of a variational inequality.  In simulation, the
+boundary captures option value that static thresholds miss.  On real anomaly
+portfolios, it separates real signals from drift-destroyed placebos while reaching
+near-long-horizon admission power decades earlier.  At the stock level, it shows that
+gross-return tradeability can vanish under conservative costs.
 
-\bibitem{chenZimmermann2022}
-Chen, Andrew Y., and Tom Zimmermann.
-\newblock ``Open Source Cross-Sectional Asset Pricing.''
-\newblock \emph{Critical Finance Review}, 11(2):207--264, 2022.
-\newblock Working-paper/data version: Finance and Economics Discussion Series 2021-037,
-Board of Governors of the Federal Reserve System.
-\newblock \url{https://doi.org/10.17016/FEDS.2021.037}.
+The remaining gaps are institutional and statistical.  The block-flip placebo shows
+that the rule certifies directional persistence at horizons beyond a year rather than
+full-sample drift alone; whether that persistence is alpha or slow-moving style
+exposure is a question the evidence model cannot answer.  The Brownian
+evidence model is an approximation whose variance and autocorrelation diagnostics we
+report; volatility updating, heavier-tailed evidence, and an exposure-dependent cost
+$\kappa_0+\kappa_1|z|+\kappa_2z^2$ are natural refinements.  And the stock-level
+experiment covers three signals under a harsh cost proxy; effective-spread costs
+across the anomaly zoo would turn it into a measurement.  The broader agenda is a research desk that treats its own pipeline as a
+portfolio of sequential options, activating each signal when its evidence, not its
+calendar, says so.
 
-\bibitem{ekstromKaratzasVaicenavicius2022}
-Ekstrom, Erik, Ioannis Karatzas, and Juozas Vaicenavicius.
-\newblock ``Bayesian Sequential Least-Squares Estimation for the Drift of a Wiener
-Process.''
-\newblock \emph{Stochastic Processes and their Applications}, 145:335--352, 2022.
-\newblock arXiv version: \url{https://arxiv.org/abs/1901.05410}.
-
-\bibitem{wrdsPlatform}
-Wharton Research Data Services.
-\newblock WRDS research data platform.
-\newblock \url{https://wrds-www.wharton.upenn.edu/}.
-
-\bibitem{wrdsPy}
-Wharton Research Data Services.
-\newblock \emph{wrds}: Python package for accessing WRDS data, version 3.5.0.
-\newblock \url{https://pypi.org/project/wrds/}.
-
-\end{thebibliography}
+\bibliographystyle{plainnat}
+\begingroup
+\footnotesize
+\bibliography{references}
+\endgroup
 
 \end{document}

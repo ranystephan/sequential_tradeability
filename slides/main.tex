@@ -47,6 +47,8 @@
 \newcommand{\F}{\mathcal{F}}
 \newcommand{\dd}{\,d}
 \newcommand{\wh}{\widehat}
+\newcommand{\wt}{\widetilde}
+\newcommand{\Lgen}{\mathcal{L}}
 \newcommand{\1}{\mathbf{1}}
 
 \title{Sequential Tradeability Testing for Alpha Signals}
@@ -62,8 +64,43 @@
   \vspace{-0.7em}
   \begin{center}
     \color{MSEGray}
-    \large When should a quant team stop researching a signal and admit it to live trading?
+    \large When should a we stop researching a signal and admit it to live trading?
   \end{center}
+\end{frame}
+
+\begin{frame}{Portfolio optimization needs trusted alpha}
+  \large
+  \[
+  \begin{aligned}
+    \max_{w}\quad &
+      \alpha^\top w
+      \;-\;\frac{\gamma}{2}\,w^\top\Sigma\,w
+      \;-\;\mathrm{Cost}(w-w_0)\\[2pt]
+    \text{s.t.}\quad
+      & \mathbf 1^\top w = 1,
+      \qquad \ell \le w \le u,\\[1pt]
+      & F^\top w = f,
+      \qquad \|w-w_0\|_1 \le \tau .
+  \end{aligned}
+  \]
+
+  \vspace{0.2em}
+  \footnotesize
+  \(w\) weights, \(w_0\) current holdings, \(\Sigma=F\Sigma_f F^\top+D\) factor risk,
+  \(\mathrm{Cost}(\cdot)\) spread \(+\) impact, \(F\) factor loadings, \(\tau\) turnover budget.
+  \normalsize
+
+  \vspace{0.5em}
+  Risk, constraints, and trading costs can be modeled carefully.
+  \textbf{But what admits \(\alpha\)?}
+
+  \vspace{0.4em}
+  \begin{block}{The upstream question}
+    \(\alpha\) is not a given input: it is an uncertain object learned from noisy evidence,
+    and the most fragile input in the pipeline. This project is the \emph{alpha-validation
+    layer}: which signals have enough evidence to be admitted as \(\alpha\). It is not a
+    replacement for the optimizer.
+  \end{block}
 \end{frame}
 
 \begin{frame}{The object of the project}
@@ -148,8 +185,8 @@
 
   \vspace{0.6em}
   \begin{block}{Alpha interpretation}
-    For signal validation, \(X\) is latent alpha strength and \(Y_t\) is normalized
-    cumulative return or information-coefficient evidence.
+    For signal validation, \(X\) is latent alpha strength (the signal's risk-adjusted
+    excess-return edge) and \(Y_t\) is normalized cumulative return evidence.
   \end{block}
 \end{frame}
 
@@ -191,23 +228,25 @@
 \begin{frame}{The filtering identity}
   \Large
   \[
-    \wh W_t
+    \wt W_t
     =
     Y_t-\int_0^t\wh X_s\,ds
+    \quad\text{(innovation, a } \F^Y\text{-Brownian motion)}
   \]
 
   \vspace{0.4em}
 
   \[
-    d\wh X_t=\Psi(t,\wh X_t)\,d\wh W_t,
+    d\wh X_t=\Psi(t,\wh X_t)\,d\wt W_t,
     \qquad
     \Psi(t,\wh X_t)=\Var(X\mid \F_t^Y).
   \]
 
-  \vspace{0.8em}
+  \vspace{0.6em}
   \begin{block}{Intuition}
-    Posterior uncertainty is simultaneously the remaining estimation error and the local
-    volatility of belief revisions. It is both the state variable and the learning rate.
+    The posterior mean is an \(\F_t^Y\)-martingale. The single quantity \(\Psi\) is both the
+    remaining estimation error and the local volatility of belief revisions: the state
+    variable and the learning rate at once.
   \end{block}
 \end{frame}
 
@@ -223,6 +262,7 @@
   \normalsize
   EKV study the optimal time to stop observing and report the posterior mean.
 
+  \pause
   \vspace{1.0em}
   \Large
   \[
@@ -234,8 +274,10 @@
   \]
 
   \vspace{0.4em}
-  \normalsize
-  Expected posterior variance decreases by accumulated squared learning speed.
+  \footnotesize
+  (Posterior variance \(=\) mean-squared error; Itô on the martingale \(\wh X\) gives
+  quadratic variation \(\Psi^2\).) Expected posterior variance decreases by accumulated
+  squared learning speed.
 \end{frame}
 
 \begin{frame}{The EKV problem becomes a running-cost problem}
@@ -280,7 +322,7 @@
         \[
           q(t)=\frac{q_0}{1+q_0t},
           \qquad
-          dm_t=q(t)\,d\wh W_t .
+          dm_t=q(t)\,d\wt W_t .
         \]
         \[
           \tau^\star=\left(\frac{1}{\sqrt c}-\frac{1}{q_0}\right)^+ .
@@ -290,12 +332,12 @@
     \begin{column}{0.48\textwidth}
       \begin{block}{Symmetric Bernoulli prior}
         \[
-          X\in\{-\beta,\beta\}
-        \]
-        \[
+          X\in\{-\beta,\beta\},
+          \qquad
           \Psi(x)=\beta^2-x^2 .
         \]
-        The stopping set is the complement of a symmetric continuation interval.
+        Continuation is a symmetric band in posterior mean: the continuous-time
+        sequential probability ratio test geometry.
       \end{block}
     \end{column}
   \end{columns}
@@ -346,14 +388,21 @@
     mz-\frac{\lambda}{2}(\sigma_r^2+q)z^2-\kappa .
   \]
 
-  \vspace{0.6em}
+  \vspace{0.5em}
+  \footnotesize
+  \(m=\wh X\) posterior mean alpha, \(q=\Psi\) posterior parameter risk, \(z\) exposure,
+  \(\lambda\) risk aversion, \(\sigma_r^2\) return variance, \(\kappa\) implementation hurdle.
   \normalsize
-  At stopping, \(m\) is posterior mean alpha and \(q\) is posterior parameter risk.
-  Optimizing the posterior mean-variance objective over exposure \(z\) gives
+
+  \pause
+  \vspace{0.3em}
+  The objective is concave in \(z\); the optimum and optimized value are closed form:
 
   \vspace{0.3em}
   \Large
   \[
+    z^\star=\frac{m}{\lambda(\sigma_r^2+q)},
+    \qquad
     \Phi(m,q)
     =
     \left(
@@ -362,6 +411,7 @@
     \right)^+ .
   \]
 
+  \pause
   \vspace{0.4em}
   \normalsize
   \[
@@ -386,17 +436,32 @@
 
   \vspace{0.7em}
 
+  \pause
   \normalsize
-  The discount rate \(\rho\) represents decay in deployable alpha value during validation.
+  With obstacle \(g(t,m)=e^{-\rho t}\Phi(m,q(t))\) and generator
+  \(\Lgen_t V=\tfrac12 q(t)^2 V_{mm}\), the value solves the variational inequality
 
-  \vspace{0.6em}
+  \vspace{0.3em}
   \Large
   \[
     \max\left\{
-      e^{-\rho t}\Phi(m,q(t))-V,\,
-      V_t+\frac12 q(t)^2V_{mm}-c
-    \right\}=0 .
+      \,g-V,\;
+      V_t+\Lgen_t V-c
+    \right\}=0,
+    \qquad V\ge g .
   \]
+
+  \pause
+  \vspace{0.2em}
+  \normalsize
+  Continuation region \(\mathcal C=\{V>g\}\), stopping region \(\mathcal S=\{V=g\}\),
+  separated by a free boundary with value matching \(V=g\) (smooth pasting where regular).
+
+  \vspace{0.3em}
+  \footnotesize
+  \emph{Convention:} discounting sits in the time-dependent obstacle \(e^{-\rho t}\Phi\)
+  (calendar-time value), so no \(-\rho V\) term; equivalently \(e^{-\rho(\tau-t)}\) would
+  move it into the continuation operator.
 \end{frame}
 
 \begin{frame}{What the boundary means}
@@ -406,14 +471,15 @@
     \end{column}
     \begin{column}{0.40\textwidth}
       \begin{itemize}
-        \item Red: stop and activate.
-        \item Gray: stop and reject.
-        \item Blue: continue observing.
-        \item Dashed curves: static activation threshold.
+        \item Red: stop and activate \((\mathcal S)\).
+        \item Gray: stop and reject \((\mathcal S)\).
+        \item Blue: continue observing \((\mathcal C)\).
+        \item Dashed: static activation threshold.
+        \item Lines: two posterior-mean paths.
       \end{itemize}
-      \vspace{0.7em}
-      The continuation region is a value-of-information region, not a positive-payoff
-      region.
+      \vspace{0.5em}
+      The continuation region \(\mathcal C\) is a value-of-information region, not a
+      positive-payoff region.
     \end{column}
   \end{columns}
 \end{frame}
@@ -525,14 +591,24 @@
   The term \(\eta\pi_0(t,y)\) is the posterior expected cost of admitting a null-alpha
   signal.
 
-  \vspace{0.6em}
+  \pause
+  \vspace{0.5em}
   \Large
   \[
     \max\left\{
-      \Phi_\eta(t,y)-V,\,
-      V_t+m(t,y)V_y+\frac12V_{yy}-c
-    \right\}=0 .
+      \Phi_\eta-V,\,
+      V_t+\Lgen_t V-c
+    \right\}=0,
+    \quad
+    \Lgen_t f=m(t,y)f_y+\tfrac12 f_{yy} .
   \]
+
+  \vspace{0.2em}
+  \footnotesize
+  With three states the posterior mean is no longer a sufficient coordinate, so the value
+  is solved in \emph{evidence space} \(y\). There \(\Lgen_t\) is the generator of the
+  posterior-predictive evidence \(dY_t=m(t,Y_t)\,dt+d\wt W_t\); solved by a monotone upwind
+  scheme.
 \end{frame}
 
 \begin{frame}{Controlled validation of the three-state rule}
@@ -564,7 +640,7 @@
   \begin{center}
   \begin{tabular}{ll}
     \toprule
-    Data & Chen-Zimmermann OSAP long-short monthly returns \\
+    Data & Chen-Zimmermann Open-Source Asset Pricing (OSAP) long-short returns \\
     Eligible signals & 192 predictors with enough history \\
     Calibration & 120 months \\
     Sequential validation & up to 240 months \\
@@ -607,6 +683,7 @@
       \includegraphics[width=\linewidth]{../figures/osap_static_benchmark_comparison.pdf}
     \end{column}
     \begin{column}{0.38\textwidth}
+      \pause
       \begin{block}{Sequential rule}
         \[
           72.9\% \text{ real activation}
@@ -618,6 +695,7 @@
           0.545 \text{ activation-weighted holdout}
         \]
       \end{block}
+      \pause
       Longer fixed horizons increase admission power, but at substantially later decision
       dates and lower activation-weighted holdout returns.
     \end{column}
@@ -632,17 +710,21 @@
     Return stream & \(N\) & Active & Standard active & Std. holdout \\
     \midrule
     Gross stock-level & 3 & 3 & 3 & \(1.227\%\) \\
-    Net range-cost stress & 3 & 3 & 0 & -- \\
+    Net range-cost stress & 3 & 3 & 0 & n/a \\
     \bottomrule
   \end{tabular}
   \end{center}
 
-  \vspace{0.8em}
+  \vspace{0.6em}
+  \footnotesize
+  Three signals rebuilt from CRSP/Compustat via WRDS (Wharton Research Data Services).
   \normalsize
-  Gross long-short returns satisfy the admission criterion. Under the range-cost stress
-  proxy, none survive in the standard direction.
+  Gross long-short returns are admitted in the standard direction. The range-cost proxy
+  (turnover \(\times\) monthly high-low range) removes several percent per month, turning
+  posterior net drift negative: the symmetric rule would then activate by \emph{shorting},
+  so standard-direction admissions are zero.
 
-  \vspace{0.4em}
+  \vspace{0.3em}
   The experiment separates statistical signal evidence from implementable signal value.
 \end{frame}
 

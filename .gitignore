@@ -21,8 +21,17 @@ slides/*.nav
 slides/*.out
 slides/*.snm
 slides/*.toc
+slides/*.fdb_latexmk
+slides/*.fls
+slides/*.synctex.gz
+slides/Talk.json
+slides/files/
 slides/preview/slide-*.png
 data/raw/*.csv
 data/raw/wrds/
 data/processed/wrds_*.csv
 data/processed/wrds_*.csv.gz
+docs/
+research/
+slides/ 
+

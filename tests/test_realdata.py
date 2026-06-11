@@ -11,6 +11,7 @@ from sequential_tradeability import (
     apply_three_state_solution_to_evidence,
     build_signal_evidence,
     lag1_autocorrelation,
+    block_sign_flip_evidence,
     sign_flip_evidence,
     solve_three_state_tradeability,
     static_three_state_score,
@@ -258,3 +259,43 @@ def test_apply_three_state_solution_returns_valid_real_data_decision() -> None:
         assert result.stop_date == evidence.validation_dates[result.stop_index - 1]
     assert result.holdout_months == 6
     assert np.isfinite(result.validation_increment_variance_over_dt)
+
+
+def test_block_sign_flip_evidence_flips_whole_blocks() -> None:
+    dates = np.array([date(2000 + index // 12, index % 12 + 1, 28) for index in range(60)])
+    rng_data = np.random.default_rng(11)
+    returns = rng_data.normal(0.5, 1.0, size=60)
+    evidence = build_signal_evidence(
+        ReturnSeries(name="toy", dates=dates, returns=returns),
+        calibration_months=12,
+        validation_months=48,
+    )
+
+    placebo = block_sign_flip_evidence(evidence, np.random.default_rng(7), block_months=12)
+
+    assert placebo.name == "toy_blockflip"
+    assert np.allclose(np.abs(placebo.increments), np.abs(evidence.increments))
+    ratios = placebo.increments / evidence.increments
+    for start in range(0, 48, 12):
+        block = ratios[start : start + 12]
+        assert np.all(block == block[0])
+        assert block[0] in (-1.0, 1.0)
+    assert placebo.observations[0] == 0.0
+    assert np.allclose(placebo.observations[1:], np.cumsum(placebo.increments))
+
+
+def test_block_sign_flip_evidence_handles_partial_final_block() -> None:
+    dates = np.array([date(2000 + index // 12, index % 12 + 1, 28) for index in range(31)])
+    returns = np.arange(1.0, 32.0)
+    evidence = build_signal_evidence(
+        ReturnSeries(name="toy", dates=dates, returns=returns),
+        calibration_months=12,
+        validation_months=19,
+    )
+
+    placebo = block_sign_flip_evidence(evidence, np.random.default_rng(5), block_months=12)
+
+    assert placebo.increments.size == 19
+    ratios = placebo.increments / evidence.increments
+    assert np.all(ratios[:12] == ratios[0])
+    assert np.all(ratios[12:] == ratios[12])

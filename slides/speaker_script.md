@@ -1,171 +1,445 @@
-# Speaker Script
+# Speaker Script — Beamer Deck (`slides/main.pdf`)
 
-## 1. Title
+This is the narration for the Beamer deck (29 slides). Read the text after **SAY**.
+**CLICK** = press advance once to reveal the next piece *within* the current slide;
+**→** = advance to the *next* slide. Most slides are a single block (just **→** at the end).
+Five slides — **9, 14, 15, 21, 25** — reveal incrementally, so they carry **CLICK** markers
+between pieces; say each beat, then click to reveal the next. Target ~30 minutes, roughly a
+minute a slide; don't rush the math slides (5–14).
 
-This project studies alpha validation as a sequential admission problem: after observing a candidate signal, when is the posterior evidence sufficient to activate, reject, or continue?
+Register: first-person, seminar-level, plain. The audience can read the equations, so use
+the narration to say *why* each object is there and *what I did with it*. Keep EKV's results
+attributed to EKV; everything I built, I say in the first person.
 
-The mathematical language is Bayesian filtering and optimal stopping. The practical language is alpha admission.
+---
 
-## 2. The Object Of The Project
+## Slide 1 — Title
 
-The key point is that validation is not naturally tied to an exogenous calendar date. Evidence arrives sequentially, and at each posterior state the decision maker chooses among continuation, activation, and rejection.
+SAY: "Most candidate trading signals look good in a backtest but stop working once you account
+for uncertainty, decay, turnover, and trading costs. The question this project asks sits upstream
+of all of that: when is a signal trustworthy enough to actually put into live trading? The tools
+are Bayesian filtering and optimal stopping. Let me start with where a signal ends up being
+used."
 
-The reason this is an optimal stopping problem is that waiting has option value, but waiting also has cost. More evidence may turn an ambiguous idea into a tradeable one, but the alpha may decay and research capacity is not free.
+→
 
-## 3. Why The Usual Test Is Not The Right Decision Problem
+## Slide 2 — Portfolio optimization needs trusted alpha
 
-A fixed-horizon test conditions on a preselected date and asks for statistical evidence at that date. The admission problem is different: it asks whether the posterior evidence has enough economic value to justify a production decision.
+SAY: "Here's the motivation from the portfolio side. In a Markowitz or Boyd-style optimizer,
+you choose portfolio weights to
+maximize expected alpha, minus a risk penalty, minus trading costs — subject to a budget
+constraint, position limits, factor-exposure targets, and a turnover budget. We have good
+convex machinery for all of that: the risk model, the constraints, the cost model. But every
+piece of it takes alpha, the expected-return vector, as a *given input* — and by alpha I just
+mean a signal's risk-adjusted excess-return edge. My project is the upstream question. Alpha
+isn't really given; it's an uncertain object you learn from noisy
+evidence, and the most fragile input in the whole pipeline. So before a signal is admitted as
+alpha into an optimizer like this, how much evidence do I need that it's genuinely, economically
+tradeable? I'm not replacing the optimizer; I'm studying the alpha-validation layer that decides
+what gets allowed in."
 
-If evidence becomes decisive early, the fixed horizon delays action. If evidence remains uninformative, the fixed horizon delays rejection. The sequential rule endogenizes both margins.
+→
 
-## 4. Storyline
+## Slide 3 — The object of the project
 
-The talk has six steps. First I explain the EKV model, which learns an unknown Brownian drift. Then I explain the identity that makes the stopping problem clean. Then I show how I change the reward from statistical accuracy to economic tradeability.
+SAY: "Here's the thesis in one line. Alpha validation isn't naturally a fixed-date significance
+test; it's a stopping problem under posterior uncertainty, where more evidence has option value
+but delay, alpha decay, and implementation costs push back. My starting point is the
+Ekström–Karatzas–Vaicenavicius model for the posterior dynamics: I keep their state and change
+what gets optimized, which I'll make precise in a few slides."
 
-After that I show why the Gaussian model is a diagnostic but incomplete benchmark, introduce the three-state prior, and test the resulting rule on simulated data, OSAP data, and WRDS stock-level returns.
+→
 
-## 5. EKV Starts With Drift Learning
+## Slide 4 — Fixed horizons are not admission rules
 
-EKV observe a process \(Y_t=Xt+W_t\). The drift \(X\) is unknown and fixed. The noise is Brownian.
+SAY: "To sharpen the contrast. The standard practice fixes a horizon T and asks, only at that
+date, whether the signal is statistically significant — it conditions on an exogenous date and
+separates statistical evidence from implementation value. The sequential formulation instead
+makes the decision time τ endogenous: it comes out of the posterior state, not the calendar.
+At τ the stopping region splits into activation and rejection, and continuation prices one more
+observation. The sequential machinery is EKV's; what's mine is posing *validation* this way,
+and the three-way decision — continue, activate, reject — where EKV have only two."
 
-For our project, the interpretation changes. \(X\) is unknown alpha strength, and \(Y_t\) is cumulative normalized evidence for that alpha. The filtration is simply the information generated by the evidence process.
+→
 
-## 6. Bayes' Rule Gives The Posterior State
+## Slide 5 — Storyline
 
-Because the observation is Brownian with drift, the likelihood of a candidate drift \(u\) is exponential in \(uy-u^2t/2\). This gives the posterior distribution on the slide.
+SAY: "The talk has six steps. First EKV's drift-learning model. Then the identity that makes
+the stopping problem clean. Then my move from a statistical to an economic reward. Then a
+stress test showing Gaussian beliefs can't represent a dead signal. Then the three-state fix.
+And finally the empirical tests on OSAP and WRDS data. Let me start with EKV."
 
-The relevant summaries are the posterior mean and posterior variance. The derivative identity \(\partial_yG=H\) shows that sensitivity of the posterior mean to new evidence is governed by posterior variance.
+→
 
-## 7. The Filtering Identity
+## Slide 6 — EKV starts with drift learning
 
-The innovation process subtracts the currently expected drift from the observation. In the observation filtration, that innovation is Brownian.
+SAY: "EKV observe a process Y-t equal to X-t plus a Brownian motion: an unknown constant drift
+X, plus noise. Their paper is pure sequential *estimation*, with no economics in it yet. For my
+purposes, X is the latent alpha strength and Y-t is cumulative normalized evidence. The filtration is just
+the information in the observed path; the drift and the noise are never seen separately, and
+disentangling them is the whole inference problem."
 
-The posterior mean then satisfies \(d\widehat X_t=\Psi d\widehat W_t\), where \(\Psi\) is the posterior variance. Intuitively, uncertainty has a dual role: it is the current estimation error, and it is also the volatility of future belief updates.
+→
 
-## 8. EKV's Optimal Stopping Problem
+## Slide 7 — Bayes' rule gives the posterior state
 
-EKV ask when to stop observing and estimate the drift. Their cost is squared estimation error plus observation cost.
+SAY: "Bayes' rule turns that path into a posterior over X — the prior tilted by the Gaussian
+likelihood. The two summaries I keep are the posterior mean G, my estimate of X, and the
+posterior variance H, my uncertainty. There's a useful identity here: the derivative of the
+posterior mean with respect to the evidence equals the posterior variance. In words, how strongly
+my estimate reacts to a new observation is exactly my current uncertainty — when I'm unsure the
+estimate swings a lot, and as I grow confident it barely moves. That same quantity comes back in a
+moment as the learning rate. Those two summaries are the low-dimensional state of the whole
+problem."
 
-The key identity says that expected posterior variance equals initial variance minus accumulated learning speed. So observing reduces uncertainty at rate \(\Psi^2\).
+→
 
-## 9. EKV Running-Cost Form
+## Slide 8 — The filtering identity
 
-This converts the objective into a running-cost problem. Each instant of waiting costs \(c\), but earns expected variance reduction \(\Psi^2\).
+SAY: "This is the identity everything downstream leans on. Define the innovation W-tilde by
+subtracting the running estimate from the evidence; it's a Brownian motion in the observation
+filtration. Then the posterior mean satisfies d-X-hat equals Psi d-W-tilde, where Psi is the
+posterior variance. Because there's no drift term, the posterior mean is a martingale — before
+the next observation it's already my best estimate. And the same Psi plays two roles: it's the
+remaining estimation error *and* the volatility of belief updates. That coincidence — the error
+equals the learning rate — is why the stopping problem stays clean."
 
-This is the core intuition we borrow: continuation is justified only when the expected value of information exceeds the observation cost.
+→
 
-## 10. Two EKV Benchmarks
+## Slide 9 — EKV's optimal stopping problem
 
-The Gaussian prior gives a closed-form deterministic posterior variance, which is a benchmark for the code and for the first obstacle problem.
+SAY: "EKV minimize squared estimation error plus a cost for time — they study the optimal time
+to stop observing and report the posterior mean."
 
-The Bernoulli prior gives a stopping boundary in posterior-mean space. It is the first clean example of continuation around ambiguous posterior means and stopping away from zero.
+CLICK
 
-## 11. The Project Changes The Terminal Reward
+SAY: "The key step is the identity that appears now — the variance-decay identity. Expected
+posterior variance equals the prior variance minus the accumulated squared learning rate. Two
+facts give it: posterior variance equals mean-squared error, and by Itô the martingale's
+quadratic variation is Psi-squared. Plainly, observing burns variance at rate Psi-squared."
 
-This slide is important rhetorically. I am not claiming EKV's theorem directly proves my finance boundary.
+→
 
-EKV supplies the posterior dynamics. I change the terminal payoff. That means I solve a new optimal stopping problem whose state process comes from EKV.
+## Slide 10 — The EKV problem becomes a running-cost problem
 
-## 12. Variable Translation
+SAY: "Substituting that identity, EKV's estimation problem becomes a running cost — integrate c
+minus Psi-squared. Each instant of observing costs c and earns variance reduction Psi-squared,
+so you continue only while the benefit of information exceeds its cost. This value-of-information
+logic is exactly what I carry into the finance problem. I do not carry over their stopping time
+— only the posterior state and this principle."
 
-This table is the bridge from the paper to the project. The unknown drift becomes alpha strength. The posterior mean becomes estimated alpha. Posterior uncertainty is both parameter risk and learning speed.
+→
 
-The stopping time becomes the time at which the signal is activated or rejected.
+## Slide 11 — Two EKV benchmarks
 
-## 13. Economic Activation Payoff
+SAY: "Two closed-form cases anchor my code. The Gaussian prior gives a deterministic posterior
+variance and an explicit stopping time, so I can test the filter against an exact answer. The
+symmetric Bernoulli prior gives a continuation band in posterior-mean space — and that is
+exactly the two-threshold sequential-probability-ratio-test geometry from the course: keep
+observing inside the band, stop once you leave it. It's the shape I reuse for admission."
 
-At stopping, if we trade exposure \(z\), the posterior objective is mean return minus risk penalty minus implementation hurdle.
+→
 
-Optimizing over \(z\) gives a positive-part payoff. A signal only gets admitted if posterior alpha is large enough relative to residual risk, parameter uncertainty, risk aversion, and costs.
+## Slide 12 — The project changes the terminal reward
 
-The displayed threshold is the immediate activation threshold. The dynamic boundary can differ because waiting has option value.
+SAY: "Here is that change, stated precisely. I keep EKV's posterior state process exactly as it
+is, but I replace their statistical terminal loss with an economic admission payoff. This is
+*not* a corollary of their theorem: the moment the reward changes, it's a new obstacle problem
+that I solve and validate myself, using their filter only as the state."
 
-## 14. The Finite-Horizon Stopping Problem
+→
 
-The value function compares stopping now against continuing. Discounting captures alpha decay and opportunity loss.
+## Slide 13 — Variable translation
 
-The variational inequality is the mathematical object we solve. The first term says stop if payoff equals value. The second term is the continuation PDE from the posterior mean diffusion.
+SAY: "The dictionary is direct. The drift becomes alpha strength; the posterior mean becomes my
+estimate of alpha; the posterior variance becomes both parameter risk and learning speed; the
+cost becomes research and opportunity cost; and the stopping time becomes the
+activation-or-rejection decision."
 
-## 15. What The Boundary Means
+→
 
-The figure shows the Gaussian tradeability boundary. Red means stop and activate, gray means stop and reject, and blue means continue.
+## Slide 14 — Economic activation payoff
 
-The important point is that the blue region is an option-value region. It is not where the signal is tradeable today. It is where observing longer is more valuable than deciding immediately.
+SAY: "The reward itself. If I activate the signal with exposure z — sized by risk aversion
+lambda against return variance sigma-r-squared and parameter uncertainty q — the posterior
+value is expected return, minus a risk penalty, minus a fixed implementation hurdle."
 
-## 16. First Stress Test
+CLICK
 
-Inside the Gaussian model, the dynamic rule performs well for strong true alphas. That validates the basic learning and stopping logic.
+SAY: "It's concave in z, so the optimal exposure is closed form: z-star is m, divided by lambda
+times the quantity sigma-r-squared plus q. So the position scales with my estimate of alpha and
+shrinks as either return variance or parameter uncertainty grows — bigger edge, bigger bet; more
+risk or more doubt, smaller bet. Substituting it back gives the payoff Phi as a positive part,
+because I can always decline to trade."
 
-The same figure reveals the limitation: at zero true alpha, the Gaussian prior activates too often. This is structural rather than only parametric, because a diffuse Gaussian prior assigns zero posterior probability to the event \(\theta=0\).
+CLICK
 
-## 17. Why This Failure Is Informative
+SAY: "That yields a static activation threshold — but only the *terminal* one; the dynamic
+boundary differs, because waiting can still raise the payoff."
 
-A candidate signal set can contain a nontrivial mass of null-alpha signals. Treating all candidates as draws from a diffuse continuous prior forces the posterior to explain noise as small nonzero alpha.
+→
 
-The extension therefore places a point mass at the null-alpha state.
+## Slide 15 — The finite-horizon stopping problem
 
-## 18. A Three-State Prior
+SAY: "Recall the state here is the posterior mean m — that's X-hat — and its variance q, which
+is Psi. I write the finite-horizon value function: the best expected discounted payoff, net of
+observation cost, over all stopping times up to the horizon."
 
-The three-state prior has a negative-alpha state, a null-alpha state, and a positive-alpha state.
+CLICK
 
-This separates sign uncertainty from the probability that the signal has no admissible alpha.
+SAY: "Writing the obstacle g and the generator L-t, dynamic programming gives the variational
+inequality — the max of two terms is zero, with V at least g."
 
-## 19. Posterior Probabilities
+CLICK
 
-The posterior probabilities are just finite-state Bayes' rule. The posterior mean and variance follow from those probabilities.
+SAY: "At each state, either it's optimal to stop, where V equals g — the stopping region S — or
+the continuation equation holds, where V exceeds g — the continuation region C; the free
+boundary between them is fixed by value matching, with smooth pasting where the value is
+regular. I solve the inequality numerically rather than imposing those by hand. One convention
+note, since it differs from the textbook HJB: I keep discounting inside the obstacle, so there
+is no minus-rho-V term — that's the calendar-time formulation, and rho is the same discount rate
+as the American-option example, here standing for alpha decay."
 
-The key comparative static is at near-zero evidence. As time passes without directional evidence, the posterior probability of the null-alpha state increases.
+→
 
-## 20. Dead-State Penalty
+## Slide 16 — What the boundary means
 
-The economic payoff is then adjusted by a false-discovery penalty proportional to the posterior probability of the null-alpha state.
+SAY: "This is the computed boundary for the Gaussian model. Red is activate, gray is reject —
+together the stopping set S — and blue is continue, the continuation set C; the dashed curves
+are the static threshold. The important feature is that blue band: it's a value-of-information
+region, not where the signal already pays. Early on, almost everything is continue or still
+ambiguous; as the deadline approaches, the gray reject wedge in the middle opens up and squeezes
+the continue band out toward the activation thresholds. The two black lines are simulated
+posterior-mean paths: one accumulates enough directional evidence to cross into activation — the
+red marker — and the other stays ambiguous and drops into the reject wedge."
 
-The resulting obstacle problem is now in evidence space \(y\), because the posterior state is determined by time and cumulative evidence.
+→
 
-## 21. Controlled Validation
+## Slide 17 — First stress test: Gaussian beliefs
 
-The three-state rule lowers null activation from 47.1 percent to 39.8 percent relative to a matched Gaussian boundary. Null realized value also improves.
+SAY: "Before any real data, I stress-test the rule inside its own model. I simulate evidence
+paths at fixed true alphas and compare the dynamic boundary against two simple baselines. For
+strong true alphas it works well — it extracts the learning option value. But the same
+experiment exposes a limitation: at a true alpha of zero, the Gaussian rule activates about
+ninety percent of null paths. This is in-model simulation, not data — and it's the diagnosis
+that drives the rest of the talk."
 
-It does not dominate pointwise. The improvement in null control comes with slightly lower live-alpha value, which is the expected false-discovery versus power tradeoff.
+→
 
-## 22. Real-Data Design
+## Slide 18 — The Gaussian prior rules out a point-mass null
 
-For real data, I use Chen-Zimmermann OSAP long-short monthly returns. Each signal gets a calibration window, then a sequential validation window, then a holdout.
+SAY: "The reason is structural, not a tuning failure. Under a diffuse Gaussian prior the
+probability that X is exactly zero is zero, so the model has no state for a dead signal — and as
+pure noise accumulates the posterior mean eventually wanders across the activation line. No
+choice of cost fixes that, because it lowers all activation, including true alpha, without
+creating a null-probability variable. So the fix is to add an explicit null-alpha state and let
+evidence move mass into or out of it."
 
-The Brownian evidence scaling multiplies normalized monthly returns by \(\sqrt{dt}\), so null increments have variance approximately \(dt\). The sign-flipped placebo keeps volatility structure but destroys directional drift.
+→
 
-## 23. Penalty Calibration
+## Slide 19 — A three-state prior for alpha admission
 
-This plot shows how activation changes as the false-discovery penalty increases. Real and placebo activation both fall, but placebo activation falls faster.
+SAY: "The extension is a three-state prior — negative alpha, null alpha, positive alpha. It's a
+spike-and-slab model: a spike at the null and two directional live states. The state space now
+separates the *sign* of the alpha from the probability that there is no admissible alpha at
+all."
 
-At \(\eta=0.04\), the rule activates 72.9 percent of real signals but only 27.1 percent of sign-flipped placebos.
+→
 
-## 24. Is The Rule Really Sequential?
+## Slide 20 — Posterior probabilities under the three-state prior
 
-This is the main empirical benchmark. I compare the sequential rule to fixed-horizon tests calibrated to the same placebo activation rate.
+SAY: "The posterior is finite-state Bayes; the mean and variance follow from the three
+probabilities. And here is the mechanism the Gaussian lacked. Each live state's likelihood carries
+the exp-minus-theta-squared-t-over-two factor on the slide — it decays with time unless matching
+directional evidence arrives to offset it. So when the cumulative evidence stays flat, that decay
+alone pushes mass onto
+the null: a genuine alpha would most likely have drifted by now, so the *absence* of a signal is
+itself evidence the signal is dead. When evidence does trend, mass moves to the matching live
+state. That inference is exactly what the point-mass-free Gaussian could not make."
 
-The sequential rule reaches most of the long-horizon activation power much earlier, with better activation-weighted holdout performance. This suggests it is not merely a fixed-horizon posterior test in disguise.
+→
 
-## 25. WRDS Stock-Level Reconstruction
+## Slide 21 — False-discovery penalty
 
-The WRDS experiment reconstructs book-to-market, momentum, and operating profitability from CRSP and Compustat.
+SAY: "But the dead state alone is not enough. In simulation, with the pure trading payoff, the
+rule still over-activates null paths. The reason is that the payoff is myopic: it scores expected
+profit under current beliefs and never charges for the *chance* those beliefs are wrong — for
+admitting a false discovery. So I subtract a penalty: eta times the posterior null probability,
+which is exactly the expected cost of admitting a dead signal. The decision now prices not just
+expected profit, but the probability the alpha is not there at all."
 
-Gross returns look tradeable for all three signals. Under a deliberately harsh range-cost stress test, none survive in the standard direction. That is an important practical result because a real admission rule must survive implementation frictions.
+CLICK
 
-## 26. Mathematical And Numerical Checks
+SAY: "One technical note: in the three-state case the posterior mean's volatility now depends on
+the state and vanishes at the extremes, so it's cleaner to solve in the raw evidence y, where the
+process has constant volatility and a simple drift. The generator, written L-t f on the slide, is
+m times f-y plus a half f-y-y, solved with a monotone upwind scheme. As eta rises, signals
+carrying high null probability fall below the threshold and are rejected."
 
-This slide reassures the audience that the project was not only conceptual. The posterior formulas, filtering identities, obstacle conditions, symmetry, terminal condition, and grid convergence were all tested.
+→
 
-The important message is that the math is aligned with the course: filtering, generators, dynamic programming, variational inequalities, and optimal stopping.
+## Slide 22 — Controlled validation of the three-state rule
 
-## 27. What Is Novel Here?
+SAY: "The controlled test of that fix, in simulation, with a deliberately fair comparison: the
+Gaussian benchmark is given the same prior second moment, so the only difference is the explicit
+dead state and its penalty. The three-state rule cuts null activation from 47.1 to 39.8 percent
+and improves the realized value on null signals — and by realized value I mean the actual payoff
+under the true theta, sizing the position at z-star from the estimate. It isn't free: value on
+the genuinely live alphas is slightly lower. So this is a disciplined false-discovery-versus-power
+trade-off, not a claim of dominance."
 
-The novelty is the combination: EKV-style Bayesian learning, an economic terminal payoff, an explicit null-alpha state, and empirical tests against placebo-calibrated fixed-horizon rules.
+→
 
-The problem is distinct from a standard multiperiod portfolio problem. The decision is one layer earlier: whether the alpha signal should enter the production universe at all.
+## Slide 23 — Real-data design
 
-## 28. Final Takeaways
+SAY: "Now real data. I use 192 Chen–Zimmermann open-source anomaly portfolios — these are
+long–short strategies, long the high-signal stocks and short the low ones, and they're real
+returns, not simulated. Each signal gets 120 months to calibrate volatility, then up to 240
+months of sequential validation under the rule, and a 120-month out-of-sample holdout to score
+the decision. I turn monthly returns into Brownian evidence by dividing by calibrated volatility
+and multiplying by root-dt, so under the null the increments have variance about dt. I have no
+ground truth on real data, so I build a placebo: I sign-flip each signal's validation returns.
+That keeps the volatility but destroys persistent direction — it's my stand-in for a dead
+signal, and I use it to calibrate the penalty."
 
-The final takeaway is that alpha validation can be formulated as sequential admission. The method decides when to keep learning, when to activate, and when to reject.
+→
 
-That framing naturally connects the course material to a real quantitative research workflow.
+## Slide 24 — Penalty calibration with real signals and placebos
+
+SAY: "This is how I set eta. With no penalty the rule is too loose; as eta rises, both real and
+placebo activation fall, but placebo activation falls faster, so the two separate. At eta equal
+to 0.04, the rule activates 72.9 percent of real signals but only 27.1 percent of the
+sign-flipped placebos — concretely, 140 of 192 real against 52 of 192 placebos. That separation
+is the first real-data evidence that the rule responds to persistent direction, not just to
+volatility. One honest caveat: the Brownian scaling is only approximate — the increment variance
+is about 1.24 times dt, with mild autocorrelation — which is part of what motivates the
+stock-level experiment."
+
+→
+
+## Slide 25 — Is the rule really sequential?
+
+SAY: "This is the benchmark I cared about most: is the rule genuinely sequential, or just a
+fixed-horizon test in disguise? I compare against fixed horizons calibrated on the placebos to
+admit the same number of false positives, so every rule faces the same false-positive rate. The
+left panel is admission power; the right is the post-decision holdout."
+
+CLICK
+
+SAY: "The sequential rule — the star — activates 72.9 percent of real signals, at an average
+decision month of 47.9, with the highest activation-weighted holdout of the set, 0.545."
+
+CLICK
+
+SAY: "Longer fixed horizons activate more real signals — but only by waiting ten or twenty years,
+and their holdout is weaker. So the advantage isn't raw count; it's *earlier* admission at matched
+placebo activation with stronger post-decision returns. And the reason is structural: a fixed
+horizon must commit to its decision date in advance, while the sequential rule lets the evidence
+choose the date — it stops the moment the posterior is conclusive. That freedom to choose *when*
+to decide is precisely the optimal-stopping value EKV formalizes, and here it pays off on real
+anomaly data."
+
+→
+
+## Slide 26 — WRDS stock-level reconstruction
+
+SAY: "A stock-level robustness check, one layer closer to implementation. I rebuild momentum,
+book-to-market, and operating profitability directly from CRSP and Compustat — value-weighted
+decile portfolios, long the top tenth of stocks by signal and short the bottom tenth, built from
+millions of stock-months — and I apply the same three-state rule with no retuning. On gross returns, all three are admitted in the standard direction, with a positive
+holdout. But under a deliberately harsh range-cost transaction stress, none survive in the
+standard direction. The practical point: statistical evidence that a signal exists is not
+evidence you can trade it net of costs. I'd read the net line as a stress test, not a final cost
+estimate — the proxy is monthly high-low ranges, and the next step is a cleaner daily spread."
+
+→
+
+## Slide 27 — Mathematical and numerical checks
+
+SAY: "Because these are all computed objects, I validated them rather than trusting them:
+posterior normalization and the derivative identities, the Gaussian precision update against its
+closed form, the obstacle solver's terminal, symmetry, and monotonicity conditions,
+finite-difference diagnostics to machine precision, and grid convergence. The point is that the
+project sits directly on the course material — filtering, generators, dynamic programming, and
+variational inequalities with free boundaries."
+
+→
+
+## Slide 28 — What is novel here?
+
+SAY: "What's new is the combination: the EKV filtering state used for a validation *decision*
+rather than estimation; an economic terminal payoff; an explicit null-alpha state with a
+false-discovery penalty; and a placebo-calibrated comparison against fixed-horizon tests. The
+one-line conclusion: alpha validation is a sequential admission problem, not a fixed-date
+significance test."
+
+→
+
+## Slide 29 — Final takeaways
+
+SAY: "To close, the whole arc in one breath: EKV's filter gives the learning state; an economic
+reward turns estimation into an admission decision; the Gaussian prior can't see a dead signal,
+so a three-state prior with a false-discovery penalty fixes that; and on real, placebo-calibrated
+data the rule admits earlier than fixed horizons at matched power."
+
+→
+
+## Slide 30 — References
+
+SAY: "This builds on Ekström, Karatzas, and Vaicenavicius for the filtering and stopping theory,
+and on Chen–Zimmermann and Chen–Velikov for the anomaly data and the transaction-cost side.
+Thank you — I'm happy to take questions."
+
+---
+
+## Number tags (memorize — these live close together and are easy to swap)
+
+- **90.1%** — in-model *simulation*, Gaussian rule at true alpha = 0 (slide 17). NOT real data.
+- **72.9% / 27.1%** — *real* vs sign-flipped *placebo* activation at η = 0.04 (slides 24–25);
+  i.e. 140/192 vs 52/192.
+- **47.1% → 39.8%** — null activation, matched Gaussian vs three-state, *simulation* (slide 22).
+- **0.545** — activation-weighted holdout for the sequential rule (slide 25). This is *not* the
+  0.747%/month conditional holdout (a different column); don't quote them interchangeably.
+- **1.24·dt, 0.10** — Brownian-scaling diagnostics: increment variance ratio and median
+  |lag-1 autocorr| (slide 24).
+
+## Q&A cheat sheet (the questions the dry-runs flagged as most likely)
+
+1. **"Derive the variance-decay identity."** Posterior variance equals mean-squared error
+   (tower property). X̂ is a martingale, dX̂ = Ψ dW̃, so its quadratic variation is Ψ²; the law
+   of total variance then gives E[Ψ(τ)] = Var(X) − E[∫₀^τ Ψ² ds].
+
+2. **"Your VI has no −ρV term; the course's does."** Calendar-time convention: discounting is
+   inside the obstacle e^{−ρt}Φ, so no −ρV. The current-time formulation e^{−ρ(τ−t)} would put
+   −ρV in the continuation PDE. Same problem, equivalent.
+
+3. **"Is your finance boundary optimal — does EKV's theorem cover you?"** No. EKV prove
+   optimality for the squared-error loss only. Changing the reward gives a *new* obstacle
+   problem; I solve the VI numerically and validate it (terminal, symmetry, monotonicity, grid
+   convergence). I borrow their state process, not their optimality result.
+
+4. **"Real returns aren't IID Brownian."** Yes, approximately — increment variance ≈ 1.24·dt,
+   median |lag-1 autocorr| ≈ 0.10. It's a reasonable first approximation, and it's exactly why I
+   add the WRDS stock-level experiment.
+
+5. **"Is sign-flip a fair 'dead-signal' null?"** It keeps the volatility and kills *persistent
+   direction* — precisely what the rule is meant to detect, which is why placebo activation falls
+   faster in η than real. It isn't ground truth (I have none on real data), so I also ran the
+   in-model simulation where θ = 0 is genuinely dead.
+
+6. **"Why three states, and why a ≈ 0.387?"** Minimal model with an explicit null atom and two
+   directional states. a = √(0.045/(1−p₀)) ≈ 0.387 is pinned by matching the prior second moment
+   (0.045) to the Gaussian benchmark, so the comparison is fair.
+
+7. **"Are σ_r² and q commensurate (slide 14)?"** Predictive-risk approximation:
+   Var(r | F) = σ_r² + q — return noise plus parameter uncertainty about the drift — in the same
+   annualized evidence units.
+
+8. **"WRDS: all three die under costs — does the method find anything tradeable?"** The net result
+   is a deliberately harsh stress test (high-low range proxy removing 5–13%/month), not a real
+   cost estimate. The contribution there is separating "exists statistically" from "tradeable net
+   of costs." Next step: a clean daily effective-spread cost (Chen–Velikov).
+
+9. **"Where is smooth pasting — did you verify it?"** I keep the variational inequality as the
+   primary object because the time-dependent obstacle can kink; I don't impose smooth pasting by
+   hand, I read the boundary off the VI solution.
